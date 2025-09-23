@@ -29,6 +29,13 @@ type Repository struct {
 	RekognitionClient *rekognition.Client
 }
 
+func NewRepository(db *gorm.DB, rekClient *rekognition.Client) *Repository {
+	return &Repository{
+		DB:                db,
+		RekognitionClient: rekClient,
+	}
+}
+
 // Saves image record to DB, return created photoID
 func (r *Repository) AddImage(image *models.Photos) (uint, error) {
 	result := r.DB.Create(image)
@@ -39,7 +46,7 @@ func (r *Repository) AddImage(image *models.Photos) (uint, error) {
 }
 
 // Saves detection results to DB
-func (r *Repository) SaveDetectionResults(results []DetectionResults) error {
+func (r *Repository) SaveDetectionResults(results []models.FaceDetection) error {
 	return r.DB.Create(&results).Error
 }
 

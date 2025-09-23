@@ -23,20 +23,6 @@ type FaceDetectionResult struct {
 	Confidence float32
 }
 
-// func CreateEventCollection(client *rekognition.Client, eventID string) error {
-// 	collectionID := fmt.Sprintf("event-%s", eventID)
-
-// 	_, err := client.CreateCollection(context.Background(), &rekognition.CreateCollectionInput{
-// 		CollectionId: aws.String(collectionID),
-// 	})
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create collection: %w", err)
-// 	}
-
-// 	fmt.Printf("created collectoin: %s\n", collectionID)
-// 	return nil
-// }
-
 // Calls to check for existing collection and creates one if none
 func EnsureCollectionExists(ctx context.Context, client *rekognition.Client, eventID string) (string, error) {
 	collectionID := fmt.Sprintf("event-%s", eventID)
@@ -106,6 +92,7 @@ func AddFaceToCollection(ctx context.Context, client *rekognition.Client, collec
 	return results, nil
 }
 
+// Compares input face with faces in collection, returns face object
 func CompareFaces(ctx context.Context, client *rekognition.Client, collectionID, faceID string) ([]types.FaceMatch, error) {
 	out, err := client.SearchFaces(ctx, &rekognition.SearchFacesInput{
 		CollectionId:       &collectionID,

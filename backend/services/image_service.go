@@ -15,6 +15,7 @@ type ImageBatch struct {
 	ExpiresAt  int64  `json:"expires_at"`
 }
 
+// Process saved images
 func ImageProcessing(ctx context.Context, repo Repository, storageKey string, uploadedBy, eventID uint) error {
 
 	// create var matching models struct
@@ -47,12 +48,13 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 	}
 
 	// convert rekognition face data splice to DetectionResults struct splice
-	var results []DetectionResults
+	var results []models.FaceDetection
 	for _, dr := range detectionResults {
-		results = append(results, DetectionResults{
+		results = append(results, models.FaceDetection{
 			RekognitionID: dr.FaceID,
 			Confidence:    dr.Confidence,
 			PhotoID:       photoID,
+			EventID:       eventID,
 		})
 	}
 
@@ -91,6 +93,7 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 	return nil
 }
 
+// Serve presign URLs for all images in a certain collection
 func ServeImages(ctx context.Context, repo Repository, bucket S3Service, eventPerson models.EventPerson) ([]ImageBatch, error) {
 	// Query db for images
 	keys, ids, err := repo.FindAllInCollection(eventPerson.ID) // returns keys and ids

@@ -1,14 +1,14 @@
 package migrate
 
 import (
-	"log"
+	"fmt"
 
-	"github.com/Rynoo1/PicSort/backend/config"
 	"github.com/Rynoo1/PicSort/backend/models"
+	"gorm.io/gorm"
 )
 
-func RunMigrations() {
-	err := config.DB.AutoMigrate(
+func RunMigrations(db *gorm.DB) error {
+	err := db.AutoMigrate(
 		&models.EventPerson{},
 		&models.Event{},
 		&models.FaceDetection{},
@@ -16,6 +16,7 @@ func RunMigrations() {
 		&models.User{},
 	)
 	if err != nil {
-		log.Fatal("migration failed: ", err)
+		return fmt.Errorf("failed to run migrations: %v", err)
 	}
+	return nil
 }

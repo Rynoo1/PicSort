@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -12,10 +11,10 @@ import (
 
 var DB *gorm.DB
 
-func InitDB() {
+func InitDB() (*gorm.DB, error) {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		return nil, fmt.Errorf("error loading .env file: %w", err)
 	}
 
 	host := os.Getenv("DB_HOST")
@@ -25,13 +24,15 @@ func InitDB() {
 	port := os.Getenv("DB_PORT")
 	// bucket := os.Getenv("BUCKETNAME")
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=require",
-		host, user, password, dbName, port)
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=require",
+		host, user, password, dbName, port,
+	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("failed to connect to database:", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	DB = db
+	return db, nil
 }

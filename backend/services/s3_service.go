@@ -46,7 +46,7 @@ func (s *S3Service) GetPresignViewObjects(ctx context.Context, objectKeys []stri
 	urls := make([]PresignedObject, 0, len(objectKeys))
 	for _, key := range objectKeys {
 		presigned, err := s.Presigner.PresignGetObject(ctx, &s3.GetObjectInput{
-			Bucket: aws.String("bucketname"),
+			Bucket: aws.String("picsortstorage"),
 			Key:    aws.String(fmt.Sprintf("events/%d/%s", eventID, key)),
 		}, s3.WithPresignExpires(time.Hour*4))
 		if err != nil {
@@ -78,7 +78,7 @@ func (s *S3Service) GetPresignedUploadURLs(ctx context.Context, filenames []stri
 	urls := make([]string, 0, len(filenames))
 	for _, filename := range filenames {
 		presigned, err := s.Presigner.PresignPutObject(ctx, &s3.PutObjectInput{
-			Bucket: aws.String("bucketname"), // REPLACE WITH REAL BUCKET NAME
+			Bucket: aws.String("picsortstorage"), // REPLACE WITH REAL BUCKET NAME
 			Key:    aws.String(fmt.Sprintf("events/%s/%s", prefix, filename)),
 		}, s3.WithPresignExpires(time.Minute*3))
 		if err != nil {
