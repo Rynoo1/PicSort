@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func ImageProcessing(c *fiber.Ctx, repo *services.Repository, s3Service *services.S3Service) error {
+func ImageProcessing(c *fiber.Ctx, repo *services.ImageService) error {
 	var body struct {
 		StorageKey string `json:"storage_key"`
 		UploadedBy uint   `json:"uploaded_by"`
@@ -22,7 +22,7 @@ func ImageProcessing(c *fiber.Ctx, repo *services.Repository, s3Service *service
 
 	ctx := context.Background()
 
-	if err := services.ImageProcessing(ctx, *repo, body.StorageKey, body.UploadedBy, body.EventID); err != nil {
+	if err := repo.ImageProcessing(ctx, body.StorageKey, body.UploadedBy, body.EventID); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})

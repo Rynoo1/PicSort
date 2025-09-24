@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/Rynoo1/PicSort/backend/models"
+	"github.com/Rynoo1/PicSort/backend/services/db"
+	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"gorm.io/gorm"
 )
 
@@ -16,11 +18,21 @@ type ImageBatch struct {
 	ExpiresAt  int64  `json:"expires_at"`
 }
 
+type ImageService struct {
+	ImageRepo         *db.ImageRepo
+	DetectionRepo     *db.DetectionRepo
+	EventPersonRepo   *db.EventPersonRepo
+	RekognitionClient *rekognition.Client
+	S3Service         *S3Service
+}
+
 // Process saved images
-func ImageProcessing(ctx context.Context, repo Repository, storageKey string, uploadedBy, eventID uint) error {
+func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, uploadedBy, eventID uint) error {
 	// Open a db transaction to only commit db changes if successful
-	return repo.DB.Transaction(func(tx *gorm.DB) error {
-		txRepo := repo.WithTx(tx)
+	return s.ImageRepo.DB.Transaction(func(tx *gorm.DB) error {
+		txImageRepo := s.ImageRepo.WithTx(tx)
+		txDetectRepo := s.DetectionRepo.WithTx(tx)
+		txEventPersonRepo := s.EventPersonRepo.WithTx(tx)
 
 		// create var matching models struct
 		imageSave := models.Photos{
@@ -30,7 +42,7 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 		}
 
 		// Save photo record to db, store photoID
-		photoID, err := txRepo.AddImage(&imageSave)
+		photoID, err := txImageRepo.AddImage(&imageSave)
 		if err != nil {
 			return fmt.Errorf("failed to save image record to db: %w", err)
 		}
@@ -38,7 +50,7 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 		EventID := strconv.FormatUint(uint64(imageSave.EventID), 10)
 
 		// check if collection exists/create collection, store collectionID
-		collectionID, err := EnsureCollectionExists(ctx, txRepo.RekognitionClient, EventID)
+		collectionID, err := EnsureCollectionExists(ctx, s.RekognitionClient, EventID)
 		if err != nil {
 			return fmt.Errorf("collection check failed: %w", err)
 		}
@@ -46,7 +58,7 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 		BucketName := os.Getenv("BUCKET_NAME")
 
 		// index and add faces to rekognition collection, store rekognition face data
-		detectionResults, err := AddFaceToCollection(ctx, txRepo.RekognitionClient, collectionID, BucketName, imageSave.StorageKey)
+		detectionResults, err := AddFaceToCollection(ctx, s.RekognitionClient, collectionID, BucketName, imageSave.StorageKey)
 		if err != nil {
 			return fmt.Errorf("index faces failed: %w", err)
 		}
@@ -63,20 +75,20 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 		}
 
 		// save face data to db
-		if err = txRepo.SaveDetectionResults(results); err != nil {
+		if err = txDetectRepo.SaveDetectionResults(results); err != nil {
 			return fmt.Errorf("error saving detection results to db: %w", err)
 		}
 
 		// Compare faces to collection, update DB with matches/new faces
 		for _, detectres := range results {
-			compareResults, err := CompareFaces(ctx, txRepo.RekognitionClient, collectionID, detectres.RekognitionID)
+			compareResults, err := CompareFaces(ctx, s.RekognitionClient, collectionID, detectres.RekognitionID)
 			if err != nil {
 				return fmt.Errorf("error comparing faces: %w", err)
 			}
 
 			var matchID string
 			if len(compareResults) == 0 {
-				newPersonID, err := txRepo.NewEventPerson(&models.EventPerson{
+				newPersonID, err := txEventPersonRepo.NewEventPerson(&models.EventPerson{
 					Name:    "New Person",
 					EventID: eventID,
 				})
@@ -86,14 +98,14 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 				matchID = fmt.Sprintf("%d", newPersonID)
 			} else {
 				matchFace := *compareResults[0].Face.FaceId
-				matchUint, err := txRepo.FindMatches(matchFace)
+				matchUint, err := txDetectRepo.FindMatches(matchFace)
 				if err != nil {
 					return fmt.Errorf("error finding matching face entry: %w", err)
 				}
 				matchID = strconv.FormatUint(uint64(matchUint), 10)
 			}
 
-			err = txRepo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchID)
+			err = txDetectRepo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchID)
 			if err != nil {
 				return fmt.Errorf("failed updating face_detection table: %w", err)
 			}
@@ -104,15 +116,15 @@ func ImageProcessing(ctx context.Context, repo Repository, storageKey string, up
 }
 
 // Serve presign URLs for all images in a certain collection
-func ServeImages(ctx context.Context, repo Repository, bucket S3Service, eventPerson models.EventPerson) ([]ImageBatch, error) {
+func (s *ImageService) ServeUrls(ctx context.Context, eventPerson models.EventPerson) ([]ImageBatch, error) {
 	// Query db for images
-	keys, ids, err := repo.FindAllInCollection(eventPerson.ID) // returns keys and ids
+	keys, ids, err := s.ImageRepo.FindAllInCollection(eventPerson.ID) // returns keys and ids
 	if err != nil {
 		return nil, err
 	}
 
 	// Generate presign urls for all images
-	links, err := bucket.GetPresignViewObjects(ctx, keys, eventPerson.Event.ID) // takes keys - returns links and expiration
+	links, err := s.S3Service.GetPresignViewObjects(ctx, keys, eventPerson.Event.ID) // takes keys - returns links and expiration
 	if err != nil {
 		return nil, err
 	}

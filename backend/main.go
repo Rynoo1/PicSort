@@ -9,6 +9,7 @@ import (
 	"github.com/Rynoo1/PicSort/backend/migrate"
 	"github.com/Rynoo1/PicSort/backend/routes"
 	"github.com/Rynoo1/PicSort/backend/services"
+	servdb "github.com/Rynoo1/PicSort/backend/services/db"
 	awsCon "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/gofiber/fiber/v2"
@@ -55,13 +56,27 @@ func main() {
 	fmt.Println("Access Key ID:", creds.AccessKeyID)
 	fmt.Println("Secret Access Key:", creds.SecretAccessKey)
 
+	// Initialise repos, services, clients
 	s3Service := services.NewS3Service(cfg)
 	rekClient := rekognition.NewFromConfig(cfg)
-	repo := services.NewRepository(db, rekClient)
+	imageRepo := servdb.NewImageRepo(db)
+	eventPersonRepo := servdb.NewEventPersonRepo(db)
+	detectionRepo := servdb.NewDetectionRepo(db)
+	imageServices := &services.ImageService{
+		ImageRepo:         imageRepo,
+		EventPersonRepo:   eventPersonRepo,
+		DetectionRepo:     detectionRepo,
+		RekognitionClient: rekClient,
+		S3Service:         s3Service,
+	}
+	appServices := &services.AppServices{
+		S3Service:    s3Service,
+		ImageService: imageServices,
+	}
 
 	app := fiber.New()
 
-	routes.SetupRoutes(app, repo, s3Service)
+	routes.SetupRoutes(app, appServices)
 
 	log.Fatal(app.Listen(":8080"))
 }

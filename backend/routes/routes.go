@@ -6,9 +6,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, repo *services.Repository, s3Service *services.S3Service) {
+func SetupRoutes(app *fiber.App, svc *services.AppServices) {
 
 	app.Post("/image-processing", func(c *fiber.Ctx) error {
-		return handlers.ImageProcessing(c, repo, s3Service)
+		return handlers.ImageProcessing(c, svc.ImageService)
 	})
 }
