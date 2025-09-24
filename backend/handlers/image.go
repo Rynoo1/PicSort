@@ -8,12 +8,14 @@ import (
 )
 
 func ImageProcessing(c *fiber.Ctx, repo *services.ImageService) error {
+	// body format struct
 	var body struct {
 		StorageKey string `json:"storage_key"`
 		UploadedBy uint   `json:"uploaded_by"`
 		EventID    uint   `json:"event_id"`
 	}
 
+	// pass body into the struct
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "invalid request",

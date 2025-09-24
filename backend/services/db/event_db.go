@@ -24,12 +24,8 @@ func (r *EventRepo) WithTx(tx *gorm.DB) *EventRepo {
 }
 
 // create new event
-func (r *EventRepo) CreateEvent(event models.Event) error {
-	err := r.DB.Create(event)
-	if err != nil {
-		return err.Error
-	}
-	return nil
+func (r *EventRepo) CreateEvent(event *models.Event) error {
+	return r.DB.Create(event).Error
 }
 
 // Add multiple users to an event

@@ -62,6 +62,7 @@ func main() {
 	imageRepo := servdb.NewImageRepo(db)
 	eventPersonRepo := servdb.NewEventPersonRepo(db)
 	detectionRepo := servdb.NewDetectionRepo(db)
+	eventRepo := servdb.NewEventRepo(db)
 	imageServices := &services.ImageService{
 		ImageRepo:         imageRepo,
 		EventPersonRepo:   eventPersonRepo,
@@ -72,6 +73,7 @@ func main() {
 	appServices := &services.AppServices{
 		S3Service:    s3Service,
 		ImageService: imageServices,
+		EventRepo:    eventRepo,
 	}
 
 	app := fiber.New()
