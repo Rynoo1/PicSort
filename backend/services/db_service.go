@@ -36,6 +36,13 @@ func NewRepository(db *gorm.DB, rekClient *rekognition.Client) *Repository {
 	}
 }
 
+func (r *Repository) WithTx(tx *gorm.DB) *Repository {
+	return &Repository{
+		DB:                tx,
+		RekognitionClient: r.RekognitionClient,
+	}
+}
+
 // Saves image record to DB, return created photoID
 func (r *Repository) AddImage(image *models.Photos) (uint, error) {
 	result := r.DB.Create(image)
@@ -60,13 +67,13 @@ func (r *Repository) NewEventPerson(person *models.EventPerson) (uint, error) {
 }
 
 // Finds Matched FaceDetection table rows ID's
-func (r *Repository) FindMatches(matchID uint) (uint, error) {
+func (r *Repository) FindMatches(matchID string) (uint, error) {
 	var matchedDetection models.FaceDetection
-	err := r.DB.Where("face_id = ?", matchID).First(&matchedDetection).Error
+	err := r.DB.Where("rekognition_id = ?", matchID).First(&matchedDetection).Error
 	if err != nil {
 		return 0, err
 	}
-	return matchedDetection.ID, nil
+	return *matchedDetection.EventPersonID, nil
 }
 
 // Updates FaceDetections table with matching event person ID

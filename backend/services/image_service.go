@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Rynoo1/PicSort/backend/models"
+	"gorm.io/gorm"
 )
 
 type ImageBatch struct {
@@ -17,80 +18,89 @@ type ImageBatch struct {
 
 // Process saved images
 func ImageProcessing(ctx context.Context, repo Repository, storageKey string, uploadedBy, eventID uint) error {
+	// Open a db transaction to only commit db changes if successful
+	return repo.DB.Transaction(func(tx *gorm.DB) error {
+		txRepo := repo.WithTx(tx)
 
-	// create var matching models struct
-	imageSave := models.Photos{
-		StorageKey: storageKey,
-		UploadedBy: uploadedBy,
-		EventID:    eventID,
-	}
-
-	// Save photo record to db, store photoID
-	photoID, err := repo.AddImage(&imageSave)
-	if err != nil {
-		return fmt.Errorf("failed to save image record to db: %w", err)
-	}
-
-	EventID := strconv.FormatUint(uint64(imageSave.EventID), 10)
-
-	// check if collection exists/create collection, store collectionID
-	collectionID, err := EnsureCollectionExists(ctx, repo.RekognitionClient, EventID)
-	if err != nil {
-		return fmt.Errorf("collection check failed: %w", err)
-	}
-
-	BucketName := os.Getenv("BUCKET_NAME")
-
-	// index and add faces to rekognition collection, store rekognition face data
-	detectionResults, err := AddFaceToCollection(ctx, repo.RekognitionClient, collectionID, BucketName, imageSave.StorageKey)
-	if err != nil {
-		return fmt.Errorf("index faces failed: %w", err)
-	}
-
-	// convert rekognition face data splice to DetectionResults struct splice
-	var results []models.FaceDetection
-	for _, dr := range detectionResults {
-		results = append(results, models.FaceDetection{
-			RekognitionID: dr.FaceID,
-			Confidence:    dr.Confidence,
-			PhotoID:       photoID,
-			EventID:       eventID,
-		})
-	}
-
-	// save face data to db
-	if err = repo.SaveDetectionResults(results); err != nil {
-		return fmt.Errorf("error saving detection results to db: %w", err)
-	}
-
-	// Compare faces to collection, update DB with matches/new faces
-	for _, detectres := range results {
-		compareResults, err := CompareFaces(ctx, repo.RekognitionClient, collectionID, detectres.RekognitionID)
-		if err != nil {
-			return fmt.Errorf("error comparing faces: %w", err)
+		// create var matching models struct
+		imageSave := models.Photos{
+			StorageKey: storageKey,
+			UploadedBy: uploadedBy,
+			EventID:    eventID,
 		}
 
-		var matchID string
-		if len(compareResults) == 0 {
-			newPersonID, err := repo.NewEventPerson(&models.EventPerson{
-				Name:    "New Person",
-				EventID: eventID,
+		// Save photo record to db, store photoID
+		photoID, err := txRepo.AddImage(&imageSave)
+		if err != nil {
+			return fmt.Errorf("failed to save image record to db: %w", err)
+		}
+
+		EventID := strconv.FormatUint(uint64(imageSave.EventID), 10)
+
+		// check if collection exists/create collection, store collectionID
+		collectionID, err := EnsureCollectionExists(ctx, txRepo.RekognitionClient, EventID)
+		if err != nil {
+			return fmt.Errorf("collection check failed: %w", err)
+		}
+
+		BucketName := os.Getenv("BUCKET_NAME")
+
+		// index and add faces to rekognition collection, store rekognition face data
+		detectionResults, err := AddFaceToCollection(ctx, txRepo.RekognitionClient, collectionID, BucketName, imageSave.StorageKey)
+		if err != nil {
+			return fmt.Errorf("index faces failed: %w", err)
+		}
+
+		// convert rekognition face data splice to DetectionResults struct splice
+		var results []models.FaceDetection
+		for _, dr := range detectionResults {
+			results = append(results, models.FaceDetection{
+				RekognitionID: dr.FaceID,
+				Confidence:    dr.Confidence,
+				PhotoID:       photoID,
+				EventID:       eventID,
 			})
+		}
+
+		// save face data to db
+		if err = txRepo.SaveDetectionResults(results); err != nil {
+			return fmt.Errorf("error saving detection results to db: %w", err)
+		}
+
+		// Compare faces to collection, update DB with matches/new faces
+		for _, detectres := range results {
+			compareResults, err := CompareFaces(ctx, txRepo.RekognitionClient, collectionID, detectres.RekognitionID)
 			if err != nil {
-				return fmt.Errorf("error creating new event person: %w", err)
+				return fmt.Errorf("error comparing faces: %w", err)
 			}
-			matchID = fmt.Sprintf("%d", newPersonID)
-		} else {
-			matchID = *compareResults[0].Face.FaceId
-		}
-		err = repo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchID)
-		if err != nil {
-			return fmt.Errorf("failed updating face_detection table: %w", err)
-		}
 
-	}
+			var matchID string
+			if len(compareResults) == 0 {
+				newPersonID, err := txRepo.NewEventPerson(&models.EventPerson{
+					Name:    "New Person",
+					EventID: eventID,
+				})
+				if err != nil {
+					return fmt.Errorf("error creating new event person: %w", err)
+				}
+				matchID = fmt.Sprintf("%d", newPersonID)
+			} else {
+				matchFace := *compareResults[0].Face.FaceId
+				matchUint, err := txRepo.FindMatches(matchFace)
+				if err != nil {
+					return fmt.Errorf("error finding matching face entry: %w", err)
+				}
+				matchID = strconv.FormatUint(uint64(matchUint), 10)
+			}
 
-	return nil
+			err = txRepo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchID)
+			if err != nil {
+				return fmt.Errorf("failed updating face_detection table: %w", err)
+			}
+
+		}
+		return nil
+	})
 }
 
 // Serve presign URLs for all images in a certain collection
