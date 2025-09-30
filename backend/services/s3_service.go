@@ -20,6 +20,11 @@ type PresignedObject struct {
 	ExpiresAt int64
 }
 
+type PresignedUpload struct {
+	Filename     string `json:"filename"`
+	PresignedURL string `json:"presigned_url"`
+}
+
 func NewS3Service(cfg aws.Config) *S3Service {
 	client := s3.NewFromConfig(cfg)
 	presigner := s3.NewPresignClient(client)
@@ -74,17 +79,21 @@ func (s *S3Service) PresignPutObject(ctx context.Context, bucketName string, obj
 }
 
 // Get multiple presigned URLs to upload images - one presigned URL per image
-func (s *S3Service) GetPresignedUploadURLs(ctx context.Context, filenames []string, prefix string) ([]string, error) {
-	urls := make([]string, 0, len(filenames))
+func (s *S3Service) GetPresignedUploadURLs(ctx context.Context, filenames []string, prefix string) ([]PresignedUpload, error) {
+	uploads := make([]PresignedUpload, 0, len(filenames))
 	for _, filename := range filenames {
+		storageKey := fmt.Sprintf("events/%s/%s", prefix, filename)
 		presigned, err := s.Presigner.PresignPutObject(ctx, &s3.PutObjectInput{
 			Bucket: aws.String("picsortstorage"), // REPLACE WITH REAL BUCKET NAME
-			Key:    aws.String(fmt.Sprintf("events/%s/%s", prefix, filename)),
+			Key:    aws.String(storageKey),
 		}, s3.WithPresignExpires(time.Minute*3))
 		if err != nil {
 			return nil, err
 		}
-		urls = append(urls, presigned.URL)
+		uploads = append(uploads, PresignedUpload{
+			Filename:     storageKey,
+			PresignedURL: presigned.URL,
+		})
 	}
-	return urls, nil
+	return uploads, nil
 }

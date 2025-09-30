@@ -26,6 +26,20 @@ type ImageService struct {
 	S3Service         *S3Service
 }
 
+// type ImageProcessingConfig struct {
+// 	UploadedBy      uint
+// 	EventId         uint
+// 	ReturnDetails   bool
+// 	TransientSearch bool
+// }
+
+// type DetectionResults struct {
+// 	PhotoId       uint
+// 	RekognitionId string
+// 	Confidence    float64
+// 	EventPersonId uint
+// }
+
 // Process saved images
 func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, uploadedBy, eventID uint) error {
 	// Open a db transaction to only commit db changes if successful
@@ -115,7 +129,49 @@ func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, u
 	})
 }
 
-// Serve presign URLs for all images in a certain collection
+// find matching face in event, return matching event person id
+func (s *ImageService) FindFace(ctx context.Context, storageKey string, eventId uint) (uint, error) {
+	// check if rekognition collection exists
+	EventId := strconv.FormatUint(uint64(eventId), 10)
+	collectionId := fmt.Sprintf("event-%s", EventId)
+	exists, err := CollectionExists(ctx, s.RekognitionClient, collectionId)
+	if err != nil {
+		return 0, fmt.Errorf("error finding collection: %w", err)
+	}
+	if !exists {
+		return 0, fmt.Errorf("collection does not exist, check the event/collection id")
+	}
+
+	// validate number of faces in image
+	faceCount, err := CheckFaceCount(ctx, s.RekognitionClient, storageKey)
+	if err != nil {
+		return 0, fmt.Errorf("error detecting faces: %w", err)
+	}
+	if faceCount != 1 {
+		return 0, fmt.Errorf("invalid image: expected 1 face, found %d", faceCount)
+	}
+
+	// search collection for given face
+	searchOutput, err := SearchFaceByImage(ctx, s.RekognitionClient, collectionId, storageKey)
+	if err != nil {
+		return 0, fmt.Errorf("error searching collection for face: %w", err)
+	}
+
+	// if no matches - return no matches found
+	if len(searchOutput) == 0 {
+		return 0, fmt.Errorf("no matching faces found")
+	}
+
+	// find event person id for matching person (using highest similarity entry)
+	matchId, err := s.DetectionRepo.FindMatches(*searchOutput[0].Face.FaceId)
+	if err != nil {
+		return 0, fmt.Errorf("error finding matching event person id: %w", err)
+	}
+
+	return matchId, nil
+}
+
+// Serve presign URLs for all images in a certain collection (all images for an event person)
 func (s *ImageService) ServeUrls(ctx context.Context, eventPerson models.EventPerson) ([]ImageBatch, error) {
 	// Query db for images
 	keys, ids, err := s.ImageRepo.FindAllInCollection(eventPerson.ID) // returns keys and ids

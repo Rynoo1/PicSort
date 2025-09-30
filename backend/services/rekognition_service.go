@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -105,4 +106,41 @@ func CompareFaces(ctx context.Context, client *rekognition.Client, collectionID,
 	}
 
 	return out.FaceMatches, nil
+}
+
+func SearchFaceByImage(ctx context.Context, client *rekognition.Client, collectionId, storageKey string) ([]types.FaceMatch, error) {
+	out, err := client.SearchFacesByImage(ctx, &rekognition.SearchFacesByImageInput{
+		CollectionId: aws.String(collectionId),
+		Image: &types.Image{
+			S3Object: &types.S3Object{
+				Bucket: aws.String(os.Getenv("BUCKET_NAME")),
+				Name:   aws.String(storageKey),
+			},
+		},
+		MaxFaces:           aws.Int32(5),
+		FaceMatchThreshold: aws.Float32(90.0),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return out.FaceMatches, nil
+}
+
+func CheckFaceCount(ctx context.Context, client *rekognition.Client, storageKey string) (int, error) {
+	details, err := client.DetectFaces(ctx, &rekognition.DetectFacesInput{
+		Image: &types.Image{
+			S3Object: &types.S3Object{
+				Bucket: aws.String(os.Getenv("BUCKET_NAME")),
+				Name:   aws.String(storageKey),
+			},
+		},
+		Attributes: []types.Attribute{types.AttributeDefault},
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return len(details.FaceDetails), nil
 }
