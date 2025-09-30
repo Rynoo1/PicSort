@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Create a new event
 func CreateEvent(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
 	// format request body
@@ -116,10 +117,35 @@ func ReturnAllPeople(c *fiber.Ctx, eventRepo *services.AppServices) error {
 	return c.JSON(people)
 }
 
-// return all subcollections/folders
-// find all eventpersons with event id
-// return all event person names
+// Return all events for a specific user
+func ReturnAllEvents(c *fiber.Ctx, eventRepo *services.AppServices) error {
+
+	var body struct {
+		UserId uint `json:"user_id"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid request",
+		})
+	}
+
+	events, err := eventRepo.EventRepo.FindAllEvents(body.UserId)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "could not find events for user",
+		})
+	}
+
+	return c.JSON(events)
+}
+
 // return all presign urls for images in the event?
+// return all presign urls for images in event persons folders/collections
+// return all users who are in the same events as the input userId
+
+// remove users {admin/permissions?}
+//
 
 // func RemoveUsers(c *fiber.Ctx, eventRepo *services.AppServices) error {
 

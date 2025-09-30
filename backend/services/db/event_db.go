@@ -11,6 +11,11 @@ type EventRepo struct {
 	DB *gorm.DB
 }
 
+type ReturnEvents struct {
+	EventName string `json:"event_name"`
+	EventId   uint   `json:"event_id"`
+}
+
 // constructor
 func NewEventRepo(db *gorm.DB) *EventRepo {
 	return &EventRepo{
@@ -60,7 +65,7 @@ func (r *EventRepo) RemoveUsers(userId, eventId uint) error {
 // Check if a user is in an event
 func (r *EventRepo) CheckUser(userId, eventId uint) (bool, error) {
 	var result struct{}
-	err := r.DB.Table("events_users").Where("event_id = ? AND user_id = ?", eventId, userId).First(&result).Error
+	err := r.DB.Table("event_users").Where("event_id = ? AND user_id = ?", eventId, userId).First(&result).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
@@ -68,4 +73,22 @@ func (r *EventRepo) CheckUser(userId, eventId uint) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// Returns all event names and ids for a specific user
+func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEvents, error) {
+	var user models.User
+	err := r.DB.Preload("Events").First(&user, userId).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ReturnEvents, 0)
+	for _, ev := range user.Events {
+		result = append(result, ReturnEvents{
+			EventName: ev.EventName,
+			EventId:   ev.ID,
+		})
+	}
+	return result, nil
 }
