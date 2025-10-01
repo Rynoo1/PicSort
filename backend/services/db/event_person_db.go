@@ -62,3 +62,20 @@ func (r *EventPersonRepo) ReturnEventPeople(eventId uint) ([]ReturnPeople, error
 	}
 	return result, nil
 }
+
+// Find all photo keys for a specific event person
+func (r *EventPersonRepo) FindPhotoKeysForPerson(eventPersonId uint) ([]string, error) {
+	var keys []string
+
+	err := r.DB.Table("photos").
+		Select("DISTINCT photos.storage_key").
+		Joins("JOIN face_detections fd ON fd.photo_id = photos.id").
+		Where("fd.event_person_id = ?", eventPersonId).
+		Scan(&keys).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return keys, nil
+}

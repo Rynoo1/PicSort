@@ -92,3 +92,24 @@ func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEvents, error) {
 	}
 	return result, nil
 }
+
+// Find all users who are in the same events as the given user
+func (r *EventRepo) FindAllUsers(userId uint) ([]models.User, error) {
+	var users []models.User
+
+	err := r.DB.Table("users").
+		Select("DISTINCT users.id, users.name").
+		Joins("JOIN user_events ue on ue.user_id = users.id").
+		Where("ue.event_id IN (?)",
+			r.DB.Table("user_events").
+				Select("event_id").
+				Where("user_id = ?", userId),
+		).
+		Where("users.id <> ?", userId).
+		Scan(&users).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}

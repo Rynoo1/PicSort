@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/Rynoo1/PicSort/backend/config"
 	"github.com/Rynoo1/PicSort/backend/migrate"
@@ -56,6 +57,8 @@ func main() {
 	fmt.Println("Access Key ID:", creds.AccessKeyID)
 	fmt.Println("Secret Access Key:", creds.SecretAccessKey)
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+
 	// Initialise repos, services, clients
 	s3Service := services.NewS3Service(cfg)
 	rekClient := rekognition.NewFromConfig(cfg)
@@ -75,10 +78,11 @@ func main() {
 		ImageService: imageServices,
 		EventRepo:    eventRepo,
 	}
+	authService := services.NewAuthService(jwtSecret)
 
 	app := fiber.New()
 
-	routes.SetupRoutes(app, appServices)
+	routes.SetupRoutes(app, appServices, db, authService)
 
 	log.Fatal(app.Listen(":8080"))
 }
