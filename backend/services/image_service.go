@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/Rynoo1/PicSort/backend/models"
 	"github.com/Rynoo1/PicSort/backend/services/db"
@@ -39,6 +40,29 @@ type ImageService struct {
 // 	Confidence    float64
 // 	EventPersonId uint
 // }
+
+func (s *ImageService) BatchImageProcessing(ctx context.Context, storageKeys []string, uploadedBy, eventId uint) []error {
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(storageKeys))
+
+	for _, key := range storageKeys {
+		wg.Add(1)
+		go func(k string) {
+			defer wg.Done()
+			if err := s.ImageProcessing(ctx, k, uploadedBy, eventId); err != nil {
+				errChan <- err
+			}
+		}(key)
+	}
+
+	wg.Wait()
+	close(errChan)
+	var errs []error
+	for e := range errChan {
+		errs = append(errs, e)
+	}
+	return errs
+}
 
 // Process saved images
 func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, uploadedBy, eventID uint) error {
