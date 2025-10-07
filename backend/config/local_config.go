@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -12,9 +13,12 @@ import (
 var DB *gorm.DB
 
 func InitDB() (*gorm.DB, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, fmt.Errorf("error loading .env file: %w", err)
+
+	if os.Getenv("RUNNING_IN_DOCKER") != "true" {
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Println("error loading .env file: %w", err)
+		}
 	}
 
 	host := os.Getenv("DB_HOST")

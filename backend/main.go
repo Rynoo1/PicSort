@@ -14,6 +14,7 @@ import (
 	awsCon "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -43,9 +44,11 @@ func main() {
 	}
 	fmt.Println("Database migrated successfully!")
 
-	cfg, err := awsCon.LoadDefaultConfig(context.TODO(),
-		awsCon.WithSharedConfigFiles([]string{"./.aws/config", "./.aws/credentials"}),
-		awsCon.WithSharedConfigProfile("default"))
+	if os.Getenv("RUNNING_IN_DOCKER") != "true" {
+		_ = godotenv.Load(".env")
+	}
+
+	cfg, err := awsCon.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatalf("unable to load AWS config: %v", err)
 	}
