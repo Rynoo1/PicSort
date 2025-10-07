@@ -2,32 +2,76 @@ package routes
 
 import (
 	"github.com/Rynoo1/PicSort/backend/handlers"
+	"github.com/Rynoo1/PicSort/backend/middleware"
 	"github.com/Rynoo1/PicSort/backend/services"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
 func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authService *services.AuthService) {
+	authHandler := handlers.NewAuthHandler(db, authService, svc.UserService)
 
 	// Public Routes
+	app.Post("/auth/register", authHandler.Register)
+	app.Post("/auth/login", authHandler.Login)
 
 	// Protected Routes
-	// protected := app.Group("/api", middleware.AuthMiddleware(db, authService))
+	protected := app.Group("/api", middleware.AuthMiddleware(db, authService))
 
-	// protected.Post("/image-processing", func(c *fiber.Ctx) error {
-	// 	return handlers.ImageProcessing(c, svc.ImageService)
-	// })
-	// protected.Post("/event/create", func(c *fiber.Ctx) error {
-	// 	return handlers.CreateEvent(c, svc)
-	// })
-
-	// Image Processing Pipeline
-	app.Post("/image-processing", func(c *fiber.Ctx) error {
-		return handlers.ImageProcessing(c, svc.ImageService)
+	// **IMAGES**
+	// Batch image pipeline
+	protected.Post("/image/processing-batch", func(c *fiber.Ctx) error {
+		return handlers.ImageProcessingBatch(c, svc.ImageService)
 	})
 
-	// Create Event
-	app.Post("/event/create", func(c *fiber.Ctx) error {
+	// Generate upload URLs
+	protected.Post("/image/upload-URL", func(c *fiber.Ctx) error {
+		return handlers.GenerateUploadURLs(c, svc.S3Service)
+	})
+
+	// **EVENTS**  all images?
+	// Create event
+	protected.Post("/event/create", func(c *fiber.Ctx) error { // event_mame; []user_ids
 		return handlers.CreateEvent(c, svc)
 	})
+
+	// Return all images for specific event person
+	protected.Post("/event/person-images", func(c *fiber.Ctx) error { // event_person_id; event_id
+		return handlers.ReturnAllEventPersonImages(c, svc)
+	})
+
+	// Return all event_person names and ids for specific event
+	protected.Post("/event/people", func(c *fiber.Ctx) error { // event_id
+		return handlers.ReturnAllPeople(c, svc)
+	})
+
+	// Add users to events
+	protected.Post("/event/addusers", func(c *fiber.Ctx) error { // event_id; []new_users_ids
+		return handlers.AddUsers(c, svc)
+	})
+
+	// **USER**
+	// Return all events for specific user
+	protected.Post("/user/events", func(c *fiber.Ctx) error { // user in locals
+		return handlers.ReturnAllEvents(c, svc)
+	})
+
+	// Return all related users - users in same events
+	protected.Post("/user/related", func(c *fiber.Ctx) error { // user in locals
+		return handlers.RelatedUsers(c, svc)
+	})
+
+	// Upload search image
+	protected.Post("/search/upload-url", func(c *fiber.Ctx) error { // event_id, filename; content_type
+		return handlers.GetSearchUpload(c, svc.S3Service)
+	})
+
+	// Search using image
+	protected.Post("/search", func(c *fiber.Ctx) error { // storage_key; event_id
+		return handlers.SearchCollection(c, svc.ImageService)
+	})
+
+	// TODO: Remove a user
+	// TODO: Leave event
+	// TODO: Download images?
 }

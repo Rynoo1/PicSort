@@ -52,3 +52,23 @@ func (r *DetectionRepo) UpdateDetectionsWithPersonID(faceID string, personID str
 	}
 	return nil
 }
+
+// Gets all detections for a specific event
+func (r *DetectionRepo) GetDetectionsByEvent(eventId uint) ([]models.FaceDetection, error) {
+	var results []models.FaceDetection
+	err := r.DB.Where("event_id = ?", eventId).Find(&results)
+	if err != nil {
+		return nil, err.Error
+	}
+	return results, nil
+}
+
+// Gets detections by photo Ids
+func (r *DetectionRepo) GetDetectionsByPhotoIds(photoIds []uint) ([]models.FaceDetection, error) {
+	var result []models.FaceDetection
+	err := r.DB.Where("photo_id IN ?", photoIds).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}

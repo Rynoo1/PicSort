@@ -6,4 +6,5 @@ type AppServices struct {
 	S3Service    *S3Service
 	ImageService *ImageService
 	EventRepo    *db.EventRepo
+	UserService  *UserService
 }

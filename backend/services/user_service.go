@@ -18,8 +18,12 @@ func NewUserService(db *gorm.DB) *UserService {
 // Create a New User
 func (s *UserService) CreateUser(email, username, password string) (*models.User, error) {
 	var existing models.User
-	if err := s.db.Where("email = ?", email).First(&existing).Error; err != nil {
+	err := s.db.Where("email = ?", email).First(&existing).Error
+	if err == nil {
 		return nil, errors.New("user already exists")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 
 	user := models.User{

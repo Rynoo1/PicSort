@@ -66,6 +66,7 @@ func main() {
 	eventPersonRepo := servdb.NewEventPersonRepo(db)
 	detectionRepo := servdb.NewDetectionRepo(db)
 	eventRepo := servdb.NewEventRepo(db)
+	userService := services.NewUserService(db)
 	imageServices := &services.ImageService{
 		ImageRepo:         imageRepo,
 		EventPersonRepo:   eventPersonRepo,
@@ -77,6 +78,7 @@ func main() {
 		S3Service:    s3Service,
 		ImageService: imageServices,
 		EventRepo:    eventRepo,
+		UserService:  userService,
 	}
 	authService := services.NewAuthService(jwtSecret)
 

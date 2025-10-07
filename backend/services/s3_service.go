@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 )
 
 type S3Service struct {
@@ -47,6 +49,7 @@ func (s *S3Service) PresignGetObject(ctx context.Context, bucketName string, obj
 	return req.URL, err
 }
 
+// Get presigned view urls
 func (s *S3Service) GetPresignViewObjects(ctx context.Context, objectKeys []string, eventID uint) ([]PresignedObject, error) {
 	urls := make([]PresignedObject, 0, len(objectKeys))
 	for _, key := range objectKeys {
@@ -65,35 +68,63 @@ func (s *S3Service) GetPresignViewObjects(ctx context.Context, objectKeys []stri
 	return urls, nil
 }
 
-// Get presigned URL to upload image
-func (s *S3Service) PresignPutObject(ctx context.Context, bucketName string, objectKey string, lifetimeSecs int64) (string, error) {
+// Get presigned URL to upload imag
+func (s *S3Service) PresignPutObject(ctx context.Context, bucketName, objectKey, contentType string, lifetimeSecs int64) (string, error) {
 	request, err := s.Presigner.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectKey),
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(objectKey),
+		ContentType: aws.String(contentType),
 	}, s3.WithPresignExpires(time.Duration(lifetimeSecs)*time.Second))
 	if err != nil {
 		log.Printf("Couldnt get a presigned request to put %v:%v. Heres why: %v\n", bucketName, objectKey, err)
 		return "", err
 	}
-	return request.URL, err
+	return request.URL, nil
 }
 
 // Get multiple presigned URLs to upload images - one presigned URL per image
-func (s *S3Service) GetPresignedUploadURLs(ctx context.Context, filenames []string, prefix string) ([]PresignedUpload, error) {
-	uploads := make([]PresignedUpload, 0, len(filenames))
-	for _, filename := range filenames {
-		storageKey := fmt.Sprintf("events/%s/%s", prefix, filename)
+func (s *S3Service) GetPresignedUploadURLs(ctx context.Context, files []struct {
+	Filename    string
+	ContentType string
+}, prefix string) ([]PresignedUpload, error) {
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+	}
+
+	uploads := make([]PresignedUpload, 0, len(files))
+
+	for _, file := range files {
+		if !allowedTypes[file.ContentType] {
+			return nil, fmt.Errorf("unsopported file type: %s", file.ContentType)
+		}
+
+		storageKey := fmt.Sprintf("events/%s/%s-%s", prefix, uuid.NewString(), file.Filename)
+
 		presigned, err := s.Presigner.PresignPutObject(ctx, &s3.PutObjectInput{
-			Bucket: aws.String("picsortstorage"), // REPLACE WITH REAL BUCKET NAME
-			Key:    aws.String(storageKey),
+			Bucket:      aws.String("picsortstorage"), // REPLACE WITH REAL BUCKET NAME
+			Key:         aws.String(storageKey),
+			ContentType: aws.String(file.ContentType),
 		}, s3.WithPresignExpires(time.Minute*3))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to presign %s:%w", file.Filename, err)
 		}
+
 		uploads = append(uploads, PresignedUpload{
 			Filename:     storageKey,
 			PresignedURL: presigned.URL,
 		})
 	}
+
 	return uploads, nil
+}
+
+// Delete object from bucket
+func (s *S3Service) DeleteObject(ctx context.Context, key string) error {
+	bucketName := os.Getenv("BUCKET_NAME")
+	_, err := s.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	return err
 }

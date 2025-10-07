@@ -57,7 +57,6 @@ func AddUsers(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
 	var body struct {
 		EventID   uint   `json:"event_id"`
-		AddUserID uint   `json:"add_user_id"` // get user id from local context from middleware
 		NewUserID []uint `json:"new_user_id"`
 	}
 
@@ -67,7 +66,9 @@ func AddUsers(c *fiber.Ctx, eventRepo *services.AppServices) error {
 		})
 	}
 
-	exists, err := eventRepo.EventRepo.CheckUser(body.AddUserID, body.EventID)
+	addUser := c.Locals("user").(models.User)
+
+	exists, err := eventRepo.EventRepo.CheckUser(addUser.ID, body.EventID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "an error occured when checking user in event",
@@ -120,17 +121,9 @@ func ReturnAllPeople(c *fiber.Ctx, eventRepo *services.AppServices) error {
 // Return all events for a specific user
 func ReturnAllEvents(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
-	var body struct {
-		UserId uint `json:"user_id"`
-	} // get user from local context from middleware
+	user := c.Locals("user").(*models.User)
 
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "invalid request",
-		})
-	}
-
-	events, err := eventRepo.EventRepo.FindAllEvents(body.UserId)
+	events, err := eventRepo.EventRepo.FindAllEvents(user.ID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "could not find events for user",

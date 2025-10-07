@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -27,50 +28,63 @@ type ImageService struct {
 	S3Service         *S3Service
 }
 
-// type ImageProcessingConfig struct {
-// 	UploadedBy      uint
-// 	EventId         uint
-// 	ReturnDetails   bool
-// 	TransientSearch bool
-// }
-
-// type DetectionResults struct {
-// 	PhotoId       uint
-// 	RekognitionId string
-// 	Confidence    float64
-// 	EventPersonId uint
-// }
-
-func (s *ImageService) BatchImageProcessing(ctx context.Context, storageKeys []string, uploadedBy, eventId uint) []error {
+// Batch Image Processing using concurrency (waitgroups and goroutines)
+func (s *ImageService) BatchImageProcessing(ctx context.Context, storageKeys []string, uploadedBy, eventId uint) ([]uint, []error) {
+	log.Printf("[Batch] Starting batch processing for event %d with %d images", eventId, len(storageKeys))
+	// start waitgroup
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(storageKeys))
+	idChan := make(chan uint, len(storageKeys))
 
+	// loop through keys - create a waitgroup for each image
 	for _, key := range storageKeys {
 		wg.Add(1)
+		// start a goroutine in each waitgroup - run image indexing concurrently
 		go func(k string) {
 			defer wg.Done()
-			if err := s.ImageProcessing(ctx, k, uploadedBy, eventId); err != nil {
+			log.Printf("[Image %s] Starting processing...", key)
+			photoId, err := s.ImageProcessing(ctx, k, uploadedBy, eventId)
+			if err != nil {
 				errChan <- err
+				return
 			}
+			idChan <- photoId
+			log.Printf("[Image %s] Successfully processed", key)
 		}(key)
 	}
 
+	// wait for all waitgroups to finish/close
 	wg.Wait()
 	close(errChan)
+	close(idChan)
+
+	// collect errors and ids
 	var errs []error
+	var photoIds []uint
 	for e := range errChan {
 		errs = append(errs, e)
 	}
-	return errs
+	for id := range idChan {
+		photoIds = append(photoIds, id)
+	}
+
+	// Call matching and linking function
+	if len(photoIds) > 0 {
+		if err := s.MatchAndLinkFaces(ctx, eventId, photoIds); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return photoIds, errs
 }
 
 // Process saved images
-func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, uploadedBy, eventID uint) error {
+func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, uploadedBy, eventID uint) (uint, error) {
+	var photoId uint
 	// Open a db transaction to only commit db changes if successful
-	return s.ImageRepo.DB.Transaction(func(tx *gorm.DB) error {
+	err := s.ImageRepo.DB.Transaction(func(tx *gorm.DB) error {
 		txImageRepo := s.ImageRepo.WithTx(tx)
 		txDetectRepo := s.DetectionRepo.WithTx(tx)
-		txEventPersonRepo := s.EventPersonRepo.WithTx(tx)
 
 		// create var matching models struct
 		imageSave := models.Photos{
@@ -117,37 +131,63 @@ func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, u
 			return fmt.Errorf("error saving detection results to db: %w", err)
 		}
 
-		// Compare faces to collection, update DB with matches/new faces
-		for _, detectres := range results {
+		return nil
+	})
+	return photoId, err
+}
+
+// find matches for faces, and link to correct event_person
+func (s *ImageService) MatchAndLinkFaces(ctx context.Context, eventId uint, photoIds []uint) error {
+	log.Printf("[Matching] Starting face linking for event %d", eventId)
+
+	// start db transaction
+	return s.ImageRepo.DB.Transaction(func(tx *gorm.DB) error {
+		txDetectRepo := s.DetectionRepo.WithTx(tx)
+		txEventPersonRepo := s.EventPersonRepo.WithTx(tx)
+
+		collectionID := fmt.Sprintf("event-%s", strconv.FormatUint(uint64(eventId), 10))
+
+		// check that collection exists
+		exists, err := CollectionExists(ctx, s.RekognitionClient, collectionID)
+		if err != nil {
+			return fmt.Errorf("error finding collections: %w", err)
+		} else if !exists {
+			return fmt.Errorf("no such collection")
+		}
+
+		// fetch all detections for the event
+		detections, err := txDetectRepo.GetDetectionsByPhotoIds(photoIds)
+		if err != nil {
+			return fmt.Errorf("error fetching detections: %w", err)
+		}
+
+		for _, detectres := range detections {
 			compareResults, err := CompareFaces(ctx, s.RekognitionClient, collectionID, detectres.RekognitionID)
 			if err != nil {
 				return fmt.Errorf("error comparing faces: %w", err)
 			}
 
-			var matchID string
+			var matchId string
 			if len(compareResults) == 0 {
-				newPersonID, err := txEventPersonRepo.NewEventPerson(&models.EventPerson{
+				newPersonId, err := txEventPersonRepo.NewEventPerson(&models.EventPerson{
 					Name:    "New Person",
-					EventID: eventID,
+					EventID: eventId,
 				})
 				if err != nil {
 					return fmt.Errorf("error creating new event person: %w", err)
 				}
-				matchID = fmt.Sprintf("%d", newPersonID)
+				matchId = fmt.Sprintf("%d", newPersonId)
 			} else {
 				matchFace := *compareResults[0].Face.FaceId
 				matchUint, err := txDetectRepo.FindMatches(matchFace)
 				if err != nil {
 					return fmt.Errorf("error finding matching face entry: %w", err)
 				}
-				matchID = strconv.FormatUint(uint64(matchUint), 10)
+				matchId = strconv.FormatUint(uint64(matchUint), 10)
 			}
-
-			err = txDetectRepo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchID)
-			if err != nil {
+			if err := txDetectRepo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchId); err != nil {
 				return fmt.Errorf("failed updating face_detection table: %w", err)
 			}
-
 		}
 		return nil
 	})
