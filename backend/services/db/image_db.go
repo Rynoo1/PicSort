@@ -67,6 +67,7 @@ func (r *ImageRepo) FindAllInCollection(eventPersonId uint) ([]string, []uint, e
 	return keys, ids, nil
 }
 
+// Find all images in a specific event
 func (r *ImageRepo) FindAllEventImages(eventId uint) ([]ImageResults, error) {
 	var storageKeys []ImageResults
 	err := r.DB.Model(&models.Photos{}).Select("id, storage_key").Where("event_id = ?", eventId).Find(&storageKeys).Error

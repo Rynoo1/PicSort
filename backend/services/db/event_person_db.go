@@ -42,7 +42,7 @@ func (r *EventPersonRepo) NewEventPerson(person *models.EventPerson) (uint, erro
 // Find EventPerson name by EventPerson Id
 func (r *EventPersonRepo) FindNameById(personId uint) (string, error) {
 	var result string
-	err := r.DB.Table("event_person").Select("name").Where("id = ?", personId).First(&result).Error
+	err := r.DB.Table("event_people").Select("name").Where("id = ?", personId).First(&result).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", nil
 	} else if err != nil {
@@ -54,7 +54,7 @@ func (r *EventPersonRepo) FindNameById(personId uint) (string, error) {
 // Find all EventPerson name and id by EventId
 func (r *EventPersonRepo) ReturnEventPeople(eventId uint) ([]ReturnPeople, error) {
 	var result []ReturnPeople
-	err := r.DB.Table("event_person").Select("name", "id").Where("event_id = ?", eventId).First(&result).Error
+	err := r.DB.Table("event_people").Select("name", "id").Where("event_id = ?", eventId).Find(&result).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	} else if err != nil {
