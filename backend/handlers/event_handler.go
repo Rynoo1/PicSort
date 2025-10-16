@@ -7,6 +7,7 @@ import (
 	"github.com/Rynoo1/PicSort/backend/services"
 	"github.com/Rynoo1/PicSort/backend/services/db"
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -123,13 +124,48 @@ func ReturnAllPeople(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
 // Return all events for a specific user
 func ReturnAllEvents(c *fiber.Ctx, eventRepo *services.AppServices) error {
-
 	user := c.Locals("user").(*models.User)
 
 	events, err := eventRepo.EventRepo.FindAllEvents(user.ID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "could not find events for user",
+		})
+	}
+
+	var g errgroup.Group
+
+	for i := range events {
+		ev := &events[i]
+		if len(ev.Images) == 0 {
+			continue
+		}
+
+		g.Go(func() error {
+			keys := make([]string, len(ev.Images))
+			for j, img := range ev.Images {
+				keys[j] = img.StorageKey
+			}
+
+			urls, err := eventRepo.S3Service.GetPresignViewObjects(c.Context(), keys, ev.EventId)
+			if err != nil {
+				return err
+			}
+
+			ev.Images = make([]db.ImageResults, len(urls))
+			for j, u := range urls {
+				ev.Images[j] = db.ImageResults{
+					ID:         ev.Images[j].ID,
+					StorageKey: u.URL,
+				}
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "failed to generate presign URLs",
 		})
 	}
 

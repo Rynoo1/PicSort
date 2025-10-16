@@ -16,6 +16,12 @@ type ReturnEvents struct {
 	EventId   uint   `json:"event_id"`
 }
 
+type ReturnEventWithImages struct {
+	EventId   uint           `json:"id"`
+	EventName string         `json:"name"`
+	Images    []ImageResults `json:"images"`
+}
+
 // constructor
 func NewEventRepo(db *gorm.DB) *EventRepo {
 	return &EventRepo{
@@ -77,18 +83,29 @@ func (r *EventRepo) CheckUser(userId, eventId uint) (bool, error) {
 
 // Returns all event names and ids for a specific user,
 // TODO: Return first/random 5 images from the event as well - structure: [ { id, name, images[] }, ]
-func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEvents, error) {
+func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEventWithImages, error) {
 	var user models.User
 	err := r.DB.Preload("Events").First(&user, userId).Error
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]ReturnEvents, 0)
+	result := make([]ReturnEventWithImages, 0, len(user.Events))
 	for _, ev := range user.Events {
-		result = append(result, ReturnEvents{
-			EventName: ev.EventName,
+		var images []ImageResults
+		err := r.DB.Model(&models.Photos{}).
+			Select("id, storage_key").
+			Where("event_id = ?", ev.ID).
+			Limit(4).
+			Find(&images).Error
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, ReturnEventWithImages{
 			EventId:   ev.ID,
+			EventName: ev.EventName,
+			Images:    images,
 		})
 	}
 	return result, nil
