@@ -35,6 +35,16 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 		return handlers.CreateEvent(c, svc)
 	})
 
+	// Return all info for all events for user
+	protected.Post("/event/all", func(c *fiber.Ctx) error {
+		return handlers.ReturnAllEvents(c, svc)
+	})
+
+	// Return all images and people for specific event
+	protected.Post("/event/eventdata", func(c *fiber.Ctx) error {
+		return handlers.ReturnEventData(c, svc)
+	})
+
 	// Return all images for specific event person
 	protected.Post("/event/person-images", func(c *fiber.Ctx) error { // event_person_id; event_id
 		return handlers.ReturnAllEventPersonImages(c, svc)

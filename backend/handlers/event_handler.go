@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"sync"
+
 	"github.com/Rynoo1/PicSort/backend/models"
 	"github.com/Rynoo1/PicSort/backend/services"
+	"github.com/Rynoo1/PicSort/backend/services/db"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -164,7 +167,89 @@ func ReturnAllEventPersonImages(c *fiber.Ctx, eventRepo *services.AppServices) e
 	return c.JSON(urlObjects)
 }
 
-// return all presign urls for images in the event?
+// Return all images and people for an event
+func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
+	var body struct {
+		EventId uint `json:"event_id"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request",
+		})
+	}
+
+	var (
+		people     []db.ReturnPeople
+		imageKeys  []db.ImageResults
+		err1, err2 error
+		wg         sync.WaitGroup
+	)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		people, err1 = eventRepo.ImageService.EventPersonRepo.ReturnEventPeople(body.EventId)
+	}()
+
+	go func() {
+		defer wg.Done()
+		imageKeys, err2 = eventRepo.ImageService.ImageRepo.FindAllEventImages(body.EventId)
+	}()
+
+	wg.Wait()
+
+	if err1 != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to find event people",
+		})
+	}
+
+	if err2 != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to find event images",
+		})
+	}
+
+	type urlResult struct {
+		ID  uint
+		URL string
+		Err error
+	}
+
+	urlCh := make(chan urlResult, len(imageKeys))
+	for _, img := range imageKeys {
+		img := img
+		go func() {
+			urlObj, err := eventRepo.S3Service.GetPresignViewObjects(c.Context(), []string{img.StorageKey}, body.EventId)
+			if err != nil {
+				urlCh <- urlResult{ID: img.ID, URL: "", Err: err}
+				return
+			}
+			urlCh <- urlResult{ID: img.ID, URL: urlObj[0].URL, Err: nil}
+		}()
+	}
+
+	var urlObjects []map[string]interface{}
+	for i := 0; i < len(imageKeys); i++ {
+		res := <-urlCh
+		if res.Err != nil {
+			continue
+		}
+		urlObjects = append(urlObjects, map[string]interface{}{
+			"id":  res.ID,
+			"url": res.URL,
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"event_id": body.EventId,
+		"people":   people,
+		"images":   urlObjects,
+	})
+}
+
 // return all users who are in the same events as the input userId
 
 // remove users {admin/permissions?}

@@ -66,3 +66,12 @@ func (r *ImageRepo) FindAllInCollection(eventPersonId uint) ([]string, []uint, e
 	}
 	return keys, ids, nil
 }
+
+func (r *ImageRepo) FindAllEventImages(eventId uint) ([]ImageResults, error) {
+	var storageKeys []ImageResults
+	err := r.DB.Model(&models.Photos{}).Select("id, storage_key").Where("event_id = ?", eventId).Find(&storageKeys).Error
+	if err != nil {
+		return nil, err
+	}
+	return storageKeys, nil
+}
