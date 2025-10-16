@@ -8,7 +8,7 @@ import { EventAPI } from '../api/events'
 
 const Events: Eventt[] = [
   {
-    id: '1',
+    id: 1,
     name: 'Birthday Party',
     images: [
       'https://picsum.photos/400/300?random=1',
@@ -18,7 +18,7 @@ const Events: Eventt[] = [
     ],
   },
   {
-    id: '2',
+    id: 2,
     name: 'Music Festival',
     images: [
       'https://picsum.photos/400/300?random=5',
@@ -28,7 +28,7 @@ const Events: Eventt[] = [
     ],
   },
   {
-    id: '3',
+    id: 3,
     name: 'New Years Party',
     images: [
       'https://picsum.photos/400/300?random=9',
@@ -56,8 +56,8 @@ const Main = () => {
 			const response = await EventAPI.returnAllEvents();
 
 			const formattedEvents: Eventt[] = response.data.map((event: any) => ({
-				id: event.event_id.toString(),
-				name: event.event_name,
+				id: event.id,
+				name: event.name,
 				images: event.images?.map((img: any) => img.url || img) || [],
 			}));
 
@@ -92,7 +92,7 @@ const Main = () => {
 		<FlatList
         	style={styles.list}
         	data={events}
-        	keyExtractor={(item) => item.id}
+        	keyExtractor={(item) => item.id.toString()}
         	renderItem={({ item }) => <EventCard event={item} />}
 			refreshing={loading}
 			onRefresh={fetchAllEvents}

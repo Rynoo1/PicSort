@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect} from "react";
 import * as SecureStore from "expo-secure-store";
-import { api } from "../api/client";
+import { api, setApiToken } from "../api/client";
 import { jwtDecode } from "jwt-decode";
 
 interface User {
     id: string;
     email: string;
-    name: string;
+    username: string;
 }
 
 interface AuthContextProps {
@@ -44,14 +44,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const storedToken = await SecureStore.getItemAsync("token");
                 const storedUser = await SecureStore.getItemAsync("user");
+
                 if (storedToken && storedUser && isTokenValid(storedToken)) {
                     setToken(storedToken);
                     setUser(JSON.parse(storedUser));
+                    setApiToken(storedToken);
                 } else {
-                    await logout();
+                    await SecureStore.deleteItemAsync("token");
+                    await SecureStore.deleteItemAsync("user");
+                    setApiToken(null);
                 }
             } catch (err) {
                 console.error("Error loading stored auth: ", err);
+                await SecureStore.deleteItemAsync("token").catch(() => {});
+                await SecureStore.deleteItemAsync("user").catch(() => {});
             } finally {
                 setLoading(false);
             }
@@ -62,11 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = async (email: string, password: string) => {
         try {
             const { data } = await api.post("/auth/login", { email, password });
+
+            const formattedUser: User = {
+                id: data.user.id.toString(),
+                email: data.user.email,
+                username: data.user.username,
+            };
+
             setToken(data.token);
             setUser(data.user);
+            setApiToken(data.token);
 
             await SecureStore.setItemAsync("token", data.token);
-            await SecureStore.setItemAsync("user", JSON.stringify(data.user));
+            await SecureStore.setItemAsync("user", JSON.stringify(formattedUser));
 
         } catch (err: any) {
             console.error("Login failed: ", err.response?.data || err.message);
@@ -74,9 +88,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const register = async (email: string, password: string, name: string) => {
+    const register = async (email: string, password: string, username: string) => {
         try {
-            await api.post("/auth/register", { email, password, name });
+            await api.post("/auth/register", { email, password, username });
             await login(email, password);
         } catch (err: any) {
             console.error("Registration failed: ", err.response?.data || err.message);
@@ -87,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const logout = async () => {
         setUser(null);
         setToken(null);
+        setApiToken(null);
         await SecureStore.deleteItemAsync("token");
         await SecureStore.deleteItemAsync("user");
     };

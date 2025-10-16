@@ -1,5 +1,5 @@
 export type Eventt = {
-    id: string;
+    id: number;
     name: string;
     images: string[];
 }

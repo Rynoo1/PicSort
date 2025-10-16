@@ -13,7 +13,7 @@ const Stack = createNativeStackNavigator();
 
 function RootNavigator() {
 
-  const { token, loading } = useAuth()!;
+  const { user, token, loading } = useAuth()!;
 
   if (loading) {
     return (
@@ -23,7 +23,7 @@ function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {!token ? (
+      {!token || !user ? (
         <Stack.Navigator>
           <Stack.Screen options={{ headerShown: false }} name='Login' component={Login} />
           <Stack.Screen options={{ headerShown: false }} name='Register' component={Register} />
@@ -31,6 +31,7 @@ function RootNavigator() {
       ) : (
         <Stack.Navigator>
           <Stack.Screen options={{ headerShown: false }} name='Home' component={Main} />
+          <Stack.Screen options={{ headerShown: false }} name='Event' component={Event} />
         </Stack.Navigator>
       )}
 

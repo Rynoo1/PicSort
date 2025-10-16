@@ -7,7 +7,7 @@ import { RootStackParamList } from '../types/navigation';
 import { EventAPI } from '../api/events';
 
 type EventPeople = {
-    id: string;
+    id: number;
     name: string;
     image: string;
 };
@@ -102,7 +102,7 @@ type EventImages = {
 type EventRouteProp = RouteProp<RootStackParamList, 'Event'>;
 
 type EventData = {
-    id: string;
+    id: number;
     name: string;
     people: EventPeople[];
     images: EventImages[];
@@ -198,7 +198,7 @@ const Event = () => {
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={{ marginLeft: 5 }}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                     <TouchableOpacity style={styles.personItem}>
                         <Image style={styles.personThumbnail} source={{ uri: item.image }} />

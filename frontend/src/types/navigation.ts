@@ -5,5 +5,5 @@ export type AuthStackParamList = {
 
 export type RootStackParamList = {
     Main: undefined;
-    Event: { eventId: string; eventName: string };
+    Event: { eventId: number; eventName: string };
 }

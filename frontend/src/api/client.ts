@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export const api = axios.create({
     baseURL: API_URL,
@@ -13,31 +13,43 @@ export const api = axios.create({
     },
 });
 
+let authToken: string | null = null;
+
+export const setApiToken = (token: string | null) => {
+    authToken = token;
+}
+
 api.interceptors.request.use(
     async (config) => {
-        const token = await SecureStore.getItemAsync("token");
-
         const skipAuthEndpoints = ["/auth/login", "/auth/register"];
 
-        const noSkip = skipAuthEndpoints.some((endpoint) =>
+        const shouldSkipAuth = skipAuthEndpoints.some((endpoint) =>
             config.url?.includes(endpoint)
         );
 
-        if (token && !noSkip) {
-            config.headers.Authorization =  `Bearer ${token}`;
+        if (!shouldSkipAuth && authToken) {
+            config.headers.Authorization = `Bearer ${authToken}`;
+            console.log("request to:", config.url);
+            console.log("token:", authToken.substring(0, 20) + '...');
+        } else if (!shouldSkipAuth && !authToken) {
+            console.error('No token available for:', config.url);
         }
-        return config;
+
+        return config
     },
     (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
         if (error.response) {
             const { status, data } = error.response;
             if (status === 401) {
                 console.warn("Unauthorized - token may be expired or invalid");
+                authToken = null;
+                await SecureStore.deleteItemAsync("token").catch(() => {});
+                await SecureStore.deleteItemAsync("user").catch(() => {});
             }
             console.error("API error:", data || error.message);
         } else {
