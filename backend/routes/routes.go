@@ -81,6 +81,10 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 		return handlers.SearchCollection(c, svc.ImageService)
 	})
 
+	protected.Get("/users/search/", func(c *fiber.Ctx) error {
+		return handlers.SearchUsers(c, svc)
+	})
+
 	// TODO: Remove a user
 	// TODO: Leave event
 	// TODO: Download images?

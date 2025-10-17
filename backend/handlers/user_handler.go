@@ -18,3 +18,16 @@ func RelatedUsers(c *fiber.Ctx, repo *services.AppServices) error {
 
 	return c.JSON(results)
 }
+
+func SearchUsers(c *fiber.Ctx, repo *services.AppServices) error {
+	query := c.Query("q")
+
+	users, err := repo.UserService.SearchUsers(query)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(users)
+}

@@ -11,6 +11,11 @@ type UserService struct {
 	db *gorm.DB
 }
 
+type ReturnUsers struct {
+	ID       uint   `json:"id"`
+	UserName string `json:"username"`
+}
+
 func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{db: db}
 }
@@ -46,4 +51,15 @@ func (s *UserService) FindByEmail(email string) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+// Search for a user name
+func (s *UserService) SearchUsers(userName string) ([]ReturnUsers, error) {
+	var users []ReturnUsers
+
+	if err := s.db.Model(&models.User{}).Where("LOWER(username) LIKE LOWER(?)", "%"+userName+"%").Find(&users).Error; err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
