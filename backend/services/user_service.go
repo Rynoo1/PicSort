@@ -13,7 +13,7 @@ type UserService struct {
 
 type ReturnUsers struct {
 	ID       uint   `json:"id"`
-	UserName string `json:"username"`
+	Username string `json:"username"`
 }
 
 func NewUserService(db *gorm.DB) *UserService {

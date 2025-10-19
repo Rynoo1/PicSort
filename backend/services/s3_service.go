@@ -19,7 +19,7 @@ type S3Service struct {
 
 type PresignedObject struct {
 	URL       string
-	ExpiresAt int64
+	ExpiresAt string
 }
 
 type PresignedUpload struct {
@@ -55,14 +55,14 @@ func (s *S3Service) GetPresignViewObjects(ctx context.Context, objectKeys []stri
 	for _, key := range objectKeys {
 		presigned, err := s.Presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String("picsortstorage"),
-			Key:    aws.String(fmt.Sprintf("events/%d/%s", eventID, key)),
+			Key:    aws.String(key),
 		}, s3.WithPresignExpires(time.Hour*4))
 		if err != nil {
 			return nil, err
 		}
 		urls = append(urls, PresignedObject{
 			URL:       presigned.URL,
-			ExpiresAt: int64(time.Now().Add(time.Hour * 4).Unix()),
+			ExpiresAt: time.Now().Add(4 * time.Hour).UTC().Format(time.RFC3339),
 		})
 	}
 	return urls, nil

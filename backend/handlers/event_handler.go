@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"sync"
 
 	"github.com/Rynoo1/PicSort/backend/models"
@@ -226,12 +227,14 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
 	go func() {
 		defer wg.Done()
-		people, err1 = eventRepo.ImageService.EventPersonRepo.ReturnEventPeople(body.EventId)
+		people, err1 = eventRepo.EventPersonRepo.ReturnEventPeople(body.EventId)
+		log.Printf("people found: %v", people)
 	}()
 
 	go func() {
 		defer wg.Done()
 		imageKeys, err2 = eventRepo.ImageService.ImageRepo.FindAllEventImages(body.EventId)
+		log.Printf("images: %v", imageKeys)
 	}()
 
 	wg.Wait()
@@ -249,9 +252,10 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 	}
 
 	type urlResult struct {
-		ID  uint
-		URL string
-		Err error
+		ID     uint
+		URL    string
+		Expire string
+		Err    error
 	}
 
 	urlCh := make(chan urlResult, len(imageKeys))
@@ -260,10 +264,10 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 		go func() {
 			urlObj, err := eventRepo.S3Service.GetPresignViewObjects(c.Context(), []string{img.StorageKey}, body.EventId)
 			if err != nil {
-				urlCh <- urlResult{ID: img.ID, URL: "", Err: err}
+				urlCh <- urlResult{ID: img.ID, URL: "", Expire: "", Err: err}
 				return
 			}
-			urlCh <- urlResult{ID: img.ID, URL: urlObj[0].URL, Err: nil}
+			urlCh <- urlResult{ID: img.ID, URL: urlObj[0].URL, Expire: urlObj[0].ExpiresAt, Err: nil}
 		}()
 	}
 
@@ -274,8 +278,9 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 			continue
 		}
 		urlObjects = append(urlObjects, map[string]interface{}{
-			"id":  res.ID,
-			"url": res.URL,
+			"id":      res.ID,
+			"url":     res.URL,
+			"expires": res.Expire,
 		})
 	}
 
@@ -283,6 +288,30 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 		"event_id": body.EventId,
 		"people":   people,
 		"images":   urlObjects,
+	})
+}
+
+// Return Event meta data
+func ReturnMeta(c *fiber.Ctx, eventRepo *services.AppServices) error {
+	var body struct {
+		EventId uint `json:"event_id"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
+
+	meta, err := eventRepo.EventRepo.FindEventMeta(body.EventId)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "error finding event updated at",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"updatedAt": meta,
 	})
 }
 

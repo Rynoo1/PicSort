@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"time"
 
 	"github.com/Rynoo1/PicSort/backend/models"
 	"gorm.io/gorm"
@@ -130,4 +131,15 @@ func (r *EventRepo) FindAllUsers(userId uint) ([]models.User, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+// Find event updated at for specific event
+func (r *EventRepo) FindEventMeta(eventId uint) (string, error) {
+	var result models.Event
+
+	err := r.DB.Where("id = ?", eventId).First(&result).Error
+	if err != nil {
+		return "", err
+	}
+	return result.UpdatedAt.UTC().Format(time.RFC3339), nil
 }

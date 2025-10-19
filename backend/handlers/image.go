@@ -167,6 +167,7 @@ func SearchCollection(c *fiber.Ctx, repo *services.ImageService) error {
 	// delete reference image from bucket after complete
 }
 
+// Generate presign URLs to upload images
 func GenerateUploadURLs(c *fiber.Ctx, repo *services.S3Service) error {
 	var req struct {
 		Files []struct {

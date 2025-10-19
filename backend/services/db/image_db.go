@@ -1,6 +1,8 @@
 package db
 
 import (
+	"time"
+
 	"github.com/Rynoo1/PicSort/backend/models"
 	"gorm.io/gorm"
 )
@@ -40,6 +42,9 @@ func (r *ImageRepo) AddImage(image *models.Photos) (uint, error) {
 	result := r.DB.Create(image)
 	if result.Error != nil {
 		return 0, result.Error
+	}
+	if err := r.DB.Model(models.Event{}).Where("id = ?", image.EventID).Update("updated_at", time.Now()); err != nil {
+		return 0, err.Error
 	}
 	return image.ID, nil
 }

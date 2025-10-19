@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -17,7 +18,7 @@ import (
 type ImageBatch struct {
 	ImageID    uint   `json:"image_id"`
 	PresignUrl string `json:"presign_url"`
-	ExpiresAt  int64  `json:"expires_at"`
+	ExpiresAt  string `json:"expires_at"`
 }
 
 type ImageService struct {
@@ -49,7 +50,7 @@ func (s *ImageService) BatchImageProcessing(ctx context.Context, storageKeys []s
 				return
 			}
 			idChan <- photoId
-			log.Printf("[Image %s] Successfully processed", key)
+			log.Printf("[Image %s] Successfully processed: id - %v", key, photoId)
 		}(key)
 	}
 
@@ -67,6 +68,7 @@ func (s *ImageService) BatchImageProcessing(ctx context.Context, storageKeys []s
 	for id := range idChan {
 		photoIds = append(photoIds, id)
 	}
+	log.Printf("Photo Ids: %v", photoIds)
 
 	// Call matching and linking function
 	if len(photoIds) > 0 {
@@ -99,6 +101,8 @@ func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, u
 			return fmt.Errorf("failed to save image record to db: %w", err)
 		}
 
+		photoId = photoID
+
 		EventID := strconv.FormatUint(uint64(imageSave.EventID), 10)
 
 		// check if collection exists/create collection, store collectionID
@@ -108,31 +112,43 @@ func (s *ImageService) ImageProcessing(ctx context.Context, storageKey string, u
 		}
 
 		BucketName := os.Getenv("BUCKET_NAME")
+		if BucketName == "" {
+			return fmt.Errorf("BUCKET_NAME environment variable not set")
+		}
+		log.Printf("Using bucket: %s, collection: %s, storage key: %s", BucketName, collectionID, imageSave.StorageKey)
 
 		// index and add faces to rekognition collection, store rekognition face data
 		detectionResults, err := AddFaceToCollection(ctx, s.RekognitionClient, collectionID, BucketName, imageSave.StorageKey)
 		if err != nil {
 			return fmt.Errorf("index faces failed: %w", err)
 		}
+		log.Printf("detected %d faces in image", len(detectionResults))
 
 		// convert rekognition face data splice to DetectionResults struct splice
-		var results []models.FaceDetection
-		for _, dr := range detectionResults {
-			results = append(results, models.FaceDetection{
-				RekognitionID: dr.FaceID,
-				Confidence:    dr.Confidence,
-				PhotoID:       photoID,
-				EventID:       eventID,
-			})
-		}
-
-		// save face data to db
-		if err = txDetectRepo.SaveDetectionResults(results); err != nil {
-			return fmt.Errorf("error saving detection results to db: %w", err)
+		if len(detectionResults) > 0 {
+			var results []models.FaceDetection
+			for _, dr := range detectionResults {
+				results = append(results, models.FaceDetection{
+					RekognitionID: dr.FaceID,
+					Confidence:    dr.Confidence,
+					PhotoID:       photoID,
+					EventID:       eventID,
+				})
+			}
+			// save face data to db
+			if err = txDetectRepo.SaveDetectionResults(results); err != nil {
+				return fmt.Errorf("error saving detection results to db: %w", err)
+			}
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		log.Printf("Image processing failed: %v", err)
+		return 0, err
+	}
+
 	return photoId, err
 }
 
@@ -160,12 +176,14 @@ func (s *ImageService) MatchAndLinkFaces(ctx context.Context, eventId uint, phot
 		if err != nil {
 			return fmt.Errorf("error fetching detections: %w", err)
 		}
+		log.Printf("[Matching] Detections: %v", detections)
 
 		for _, detectres := range detections {
 			compareResults, err := CompareFaces(ctx, s.RekognitionClient, collectionID, detectres.RekognitionID)
 			if err != nil {
 				return fmt.Errorf("error comparing faces: %w", err)
 			}
+			log.Printf("[Matching] Comparison Results: %v", compareResults)
 
 			var matchId string
 			if len(compareResults) == 0 {
@@ -177,13 +195,38 @@ func (s *ImageService) MatchAndLinkFaces(ctx context.Context, eventId uint, phot
 					return fmt.Errorf("error creating new event person: %w", err)
 				}
 				matchId = fmt.Sprintf("%d", newPersonId)
+				log.Printf("[Matching] New Person created - id: %d, converted: %v", newPersonId, matchId)
 			} else {
 				matchFace := *compareResults[0].Face.FaceId
 				matchUint, err := txDetectRepo.FindMatches(matchFace)
 				if err != nil {
-					return fmt.Errorf("error finding matching face entry: %w", err)
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						newPersonId, err := txEventPersonRepo.NewEventPerson(&models.EventPerson{
+							Name:    "New Person",
+							EventID: eventId,
+						})
+						if err != nil {
+							return fmt.Errorf("error creating new event person: %w", err)
+						}
+						matchId = fmt.Sprintf("%d", newPersonId)
+						log.Printf("[Matching] Matched face not in DB, New Person created - id: %d", newPersonId)
+					} else {
+						return fmt.Errorf("error finding matching face entry: %w", err)
+					}
+				} else if matchUint == 0 {
+					newPersonId, err := txEventPersonRepo.NewEventPerson(&models.EventPerson{
+						Name:    "New Person",
+						EventID: eventId,
+					})
+					if err != nil {
+						return fmt.Errorf("error creating new event person: %w", err)
+					}
+					matchId = fmt.Sprintf("%d", newPersonId)
+					log.Printf("[Matching] Matched face has no person, New Person created - id: %d", newPersonId)
+				} else {
+					matchId = strconv.FormatUint(uint64(matchUint), 10)
+					log.Printf("[Matching] Face Recognised - id: %d", matchUint)
 				}
-				matchId = strconv.FormatUint(uint64(matchUint), 10)
 			}
 			if err := txDetectRepo.UpdateDetectionsWithPersonID(detectres.RekognitionID, matchId); err != nil {
 				return fmt.Errorf("failed updating face_detection table: %w", err)

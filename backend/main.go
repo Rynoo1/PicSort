@@ -78,10 +78,11 @@ func main() {
 		S3Service:         s3Service,
 	}
 	appServices := &services.AppServices{
-		S3Service:    s3Service,
-		ImageService: imageServices,
-		EventRepo:    eventRepo,
-		UserService:  userService,
+		S3Service:       s3Service,
+		ImageService:    imageServices,
+		EventRepo:       eventRepo,
+		UserService:     userService,
+		EventPersonRepo: eventPersonRepo,
 	}
 	authService := services.NewAuthService(jwtSecret)
 

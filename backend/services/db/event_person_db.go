@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"time"
 
 	"github.com/Rynoo1/PicSort/backend/models"
 	"gorm.io/gorm"
@@ -14,6 +15,8 @@ type EventPersonRepo struct {
 type ReturnPeople struct {
 	PersonName string `json:"person_name"`
 	PersonId   uint   `json:"person_id"`
+	Key        string `json:"key"`
+	PhotoId    uint   `json:"photo_id"`
 }
 
 // repo constructor
@@ -36,6 +39,9 @@ func (r *EventPersonRepo) NewEventPerson(person *models.EventPerson) (uint, erro
 	if result.Error != nil {
 		return 0, result.Error
 	}
+	if err := r.DB.Model(models.Event{}).Where("id = ?", person.EventID).Update("updated_at", time.Now()).Error; err != nil {
+		return 0, err
+	}
 	return person.ID, nil
 }
 
@@ -54,7 +60,16 @@ func (r *EventPersonRepo) FindNameById(personId uint) (string, error) {
 // Find all EventPerson name and id by EventId
 func (r *EventPersonRepo) ReturnEventPeople(eventId uint) ([]ReturnPeople, error) {
 	var result []ReturnPeople
-	err := r.DB.Table("event_people").Select("name", "id").Where("event_id = ?", eventId).Find(&result).Error
+	err := r.DB.Table("event_people").
+		Select("DISTINCT ON (event_people.id) event_people.name as person_name",
+			"event_people.id as person_id",
+			"photos.storage_key as key",
+			"photos.id as photo_id").
+		Joins("LEFT JOIN face_detections ON face_detections.event_person_id = event_people.id").
+		Joins("LEFT JOIN photos ON photos.id = face_detections.photo_id").
+		Where("event_people.event_id = ?", eventId).
+		Order("event_people.id, photos.id").
+		Find(&result).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	} else if err != nil {

@@ -41,6 +41,11 @@ func (r *DetectionRepo) FindMatches(matchID string) (uint, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	if matchedDetection.EventPersonID == nil {
+		return 0, nil
+	}
+
 	return *matchedDetection.EventPersonID, nil
 }
 
