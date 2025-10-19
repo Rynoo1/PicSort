@@ -29,8 +29,6 @@ api.interceptors.request.use(
 
         if (!shouldSkipAuth && authToken) {
             config.headers.Authorization = `Bearer ${authToken}`;
-            console.log("request to:", config.url);
-            console.log("token:", authToken.substring(0, 20) + '...');
         } else if (!shouldSkipAuth && !authToken) {
             console.error('No token available for:', config.url);
         }

@@ -1,20 +1,23 @@
-import { FlatList, ScrollView, StyleSheet, TouchableOpacity, View, Image } from 'react-native'
+import { FlatList, ScrollView, StyleSheet, TouchableOpacity, View, Platform } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, Button, Text } from 'react-native-paper'
+import { ActivityIndicator, Button, Modal, PaperProvider, Portal, Text } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { EventAPI } from '../api/events';
+import { Image } from 'expo-image';
+import { getCachedEvent, isCacheValid, setCachedEvent } from '../utils/CacheUtils';
 
 type EventPeople = {
     id: number;
     name: string;
-    image: string;
+    imageUrl?: string;
 };
 
 type EventImages = {
     id: string;
     url: string;
+    expires?: string;
 }
 
 // const People: EventPeople[] = [
@@ -115,7 +118,18 @@ const Event = () => {
 
     const [eventData, setEventData] = useState<EventData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<String | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [visible, setVisible] = useState(false);
+    const [imageSource, setImageSource] = useState<string>('');
+
+    const hideModal = () => {
+        setVisible(false);
+        setImageSource("");
+    }
+    const showModal = (url: string) => {
+        setImageSource(url);
+        setVisible(true);
+    }
 
     useEffect(() => {
         navigation.setOptions({ title: eventName });
@@ -129,22 +143,51 @@ const Event = () => {
         try {
             setLoading(true);
             setError(null);
-            
+
+            const cached = await getCachedEvent(eventId);
+            const meta = await EventAPI.getEventMeta(eventId);
+
+            if (cached) {
+                
+                if (meta.data.updatedAt === cached.updatedAt && isCacheValid(cached)) {
+                    console.log('Using cached event data');
+                    setEventData(cached.data);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            console.log('fetching fresh event data');
+
             const response = await EventAPI.returnEventData(eventId);
             const data = response.data;
 
+            const photoMap = new Map(
+                data.images?.map((img: any) => [img.id, img.url]) || []
+            );
+
             const formattedData: EventData = {
-                id: data.event_id?.toString() || eventId,
+                id: eventId || data.event_id?.toString(),
                 name: eventName,
                 people: data.people?.map((person: any) => ({
-                    id: person.id.toString(),
-                    name: person.name,
+                    id: person.person_id.toString(),
+                    name: person.person_name,
+                    imageUrl: photoMap.get(person.photo_id),
                 })) || [],
                 images: data.images?.map((img: any) => ({
                     id: img.id?.toString(),
                     url: img.url,
+                    expires: img.expires,
                 })) || [],
             };
+
+            await setCachedEvent(eventId, {
+                eventId,
+                data: formattedData,
+                updatedAt: meta.data.updatedAt,
+                cachedAt: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
+            });
 
             setEventData(formattedData);
         } catch (err: any) {
@@ -174,44 +217,54 @@ const Event = () => {
     // const people = People;
     // const images = Images;
   return (
-    <SafeAreaView style={styles.container}>
-        <View style={styles.topContainer}>
-            <Text style={{ color: 'black' }} variant='headlineLarge'> {eventData.name} </Text>
-            <FlatList
-                style={{ padding: 5 }}
-                data={eventData.images}
-                numColumns={3}
-                horizontal={false}
-                inverted={true}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <TouchableOpacity style={{ flex: 1 }} onPress={() => console.log(item.id)}>
-                        <Image style={styles.galleryImage} source={{ uri: item.url }} />
+    <PaperProvider>
+        <SafeAreaView style={styles.container}>
+            <Portal>
+                <Modal visible={visible} onDismiss={hideModal}>
+                    <TouchableOpacity onPress={hideModal} style={{ width: '100%', height: '100%' }}>
+                        <Image source={{ uri: imageSource }} style={{ width: '100%', height: '100%' }} resizeMode='contain' />
                     </TouchableOpacity>
-                )}
-            />
-        </View>
-        <View style={styles.bottomContainer}>
-            <Text style={{ color: 'black' }} variant='headlineLarge'> People </Text>
-            <FlatList
-                data={eventData.people}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginLeft: 5 }}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.personItem}>
-                        <Image style={styles.personThumbnail} source={{ uri: item.image }} />
-                        <Text variant='titleLarge'>{item.name}</Text>
-                    </TouchableOpacity>
-                )}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 5 }}>
-                <Button mode='contained'>Add Users</Button>
-                <Button mode='contained'>Upload Images</Button>
+                    
+                </Modal>
+            </Portal>
+            <View style={styles.topContainer}>
+                <Text style={{ color: 'black' }} variant='headlineLarge'> {eventData.name} </Text>
+                <FlatList
+                    style={{ padding: 5 }}
+                    data={eventData.images}
+                    numColumns={3}
+                    horizontal={false}
+                    inverted={true}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity style={{ flex: 1 }} onPress={() => showModal(item.url)}>
+                            <Image style={styles.galleryImage} source={{ uri: item.url }} />
+                        </TouchableOpacity>
+                    )}
+                />
             </View>
-        </View>
-    </SafeAreaView>
+            <View style={styles.bottomContainer}>
+                <Text style={{ color: 'black' }} variant='headlineLarge'> People </Text>
+                <FlatList
+                    data={eventData.people}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginLeft: 5 }}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity style={styles.personItem}>
+                            <Image style={styles.personThumbnail} source={{ uri: item.imageUrl }} />
+                            <Text variant='titleLarge'>{item.name}</Text>
+                        </TouchableOpacity>
+                    )}
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 5 }}>
+                    <Button mode='contained'>Add Users</Button>
+                    <Button mode='contained'>Upload Images</Button>
+                </View>
+            </View>
+        </SafeAreaView>
+    </PaperProvider>
   )
 }
 

@@ -4,7 +4,7 @@ import { api, setApiToken } from "../api/client";
 import { jwtDecode } from "jwt-decode";
 
 interface User {
-    id: string;
+    id: number;
     email: string;
     username: string;
 }
@@ -67,7 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const login = async (email: string, password: string) => {
         try {
-            const { data } = await api.post("/auth/login", { email, password });
+            const normalisedEmail = email.trim().toLowerCase();
+            const { data } = await api.post("/auth/login", { email: normalisedEmail, password });
 
             const formattedUser: User = {
                 id: data.user.id.toString(),
@@ -90,7 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const register = async (email: string, password: string, username: string) => {
         try {
-            await api.post("/auth/register", { email, password, username });
+            const normalisedEmail = email.trim().toLowerCase();
+            await api.post("/auth/register", { normalisedEmail, password, username });
             await login(email, password);
         } catch (err: any) {
             console.error("Registration failed: ", err.response?.data || err.message);

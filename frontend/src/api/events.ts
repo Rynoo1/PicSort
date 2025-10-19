@@ -5,5 +5,8 @@ export const EventAPI = {
         api.post("/api/event/all"),
 
     returnEventData: (eventId: number) =>
-        api.post("/api/event/eventdata", { event_id: eventId })
+        api.post("/api/event/eventdata", { event_id: eventId }),
+
+    getEventMeta: (eventId: number) =>
+        api.post("/api/event/eventmeta", { event_id: eventId }),
 }

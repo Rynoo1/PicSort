@@ -8,6 +8,7 @@ import Login from './src/screens/Login';
 import Main from './src/screens/Main';
 import Event from './src/screens/Event';
 import { ActivityIndicator } from 'react-native-paper';
+import ImageUploadComponent from './src/components/ImageUpload';
 
 const Stack = createNativeStackNavigator();
 
