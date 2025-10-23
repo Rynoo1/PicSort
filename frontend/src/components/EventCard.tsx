@@ -1,10 +1,12 @@
-import { StyleSheet, View, Image, ScrollView, FlatList, TouchableOpacity, ImageBackground } from 'react-native'
+import { StyleSheet, View, ScrollView, FlatList, TouchableOpacity, ImageBackground } from 'react-native'
 import React, { useState } from 'react'
 import { overlay, Text } from 'react-native-paper'
 import { Eventt } from '../types/event'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../types/navigation'
 import { useNavigation } from '@react-navigation/native'
+import * as Haptics from 'expo-haptics'
+import { Image } from 'expo-image'
 
 type EventCardProps = {
     event: Eventt;
@@ -18,6 +20,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
     const lastImage = event.images[3];
 
     const handleNavigation = () => {
+        Haptics.selectionAsync();
         navigation.navigate('Event', {
             eventId: event.id,
             eventName: event.name,
@@ -32,14 +35,16 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             keyExtractor={(item, index) => `${event.id}-img-${index}`}
             renderItem={({ item }) => (
                 <View>
-                    <Image style={styles.image} source={{ uri: item }} />
+                    <TouchableOpacity onPress={handleNavigation}>
+                        <Image style={styles.image} source={{ uri: item }} />
+                    </TouchableOpacity>
                 </View>
             )}
             ListFooterComponent={
                 <TouchableOpacity style={styles.footer} onPress={handleNavigation}>
                     <Image style={styles.footerImage} source={{ uri: lastImage }} />
                     <View style={styles.overlay}>
-                        <Text variant='headlineSmall' style={styles.footerText} >View Event</Text>
+                        <Text variant='headlineSmall' style={styles.footerText}>View Event</Text>
                     </View>
                 </TouchableOpacity>
             }

@@ -3,13 +3,20 @@ import * as ImagePicker from 'expo-image-picker'
 import { File } from 'expo-file-system'
 import api from '../api/client';
 import axios from 'axios';
-import { Button, Text } from 'react-native-paper';
-import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ImageManipulator, SaveFormat, useImageManipulator } from 'expo-image-manipulator';
+import { Button, Modal, Text } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, FlatList } from 'react-native';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { Image } from 'expo-image';
 
+interface ImageUploadProps {
+    eventId: number;
+    userId: number;
+    visible: boolean;
+    onDismiss: () => void;
+    mode: 'upload' | 'search';
+}
 
-const ImageUploadComponent = ({ eventId, userId }: { eventId: number, userId: number }) => {
+const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode }: ImageUploadProps) => {
     const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
     const [uploading, setUploading] = useState(false);
 
@@ -49,11 +56,47 @@ const ImageUploadComponent = ({ eventId, userId }: { eventId: number, userId: nu
         setSelectedImages(convertedImages);
     };
 
+    const pickSearch = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            alert('Permission needed to access the camera');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: 'images',
+            allowsMultipleSelection: false,
+            quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+
+            const context = ImageManipulator.manipulate(asset.uri);
+            const render = await context.renderAsync();
+            const saved = await render.saveAsync({
+                format: SaveFormat.JPEG,
+                compress: 0.9,
+            });
+
+            const convertedPhoto = {
+                ...asset,
+                uri: saved.uri,
+                mimeType: 'image/jpeg',
+                fileName: asset.fileName?.replace(/\.[^/.]+$/, '.jpg') || `image-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`,
+            };
+            
+            setSelectedImages([convertedPhoto])
+        }
+    }
+
     const uploadImagesToS3 = async () => {
         if (selectedImages.length === 0) return;
 
         try {
             setUploading(true);
+            console.log(typeof(userId));
+            console.log(typeof(eventId));
 
             const presignResponse = await api.post('/api/image/upload-url', {
                 files: selectedImages.map(img => ({
@@ -83,41 +126,89 @@ const ImageUploadComponent = ({ eventId, userId }: { eventId: number, userId: nu
                     // }],
                 });
 
+                console.log(storageKey);
                 return storageKey;
             });
 
             const storageKeys = await Promise.all(uploadPromise);
 
-            await api.post('/api/image/processing-batch', {
-                uploaded_by: userId,
-                event_id: eventId,
-                storage_keys: storageKeys,
-            });
+            if (mode === 'upload') {
+                await api.post('/api/image/processing-batch', {
+                    uploaded_by: Number(userId),
+                    event_id: eventId,
+                    storage_keys: storageKeys,
+                });
 
-            console.log('All images uploaded and processing started');
-            setSelectedImages([]);
-            alert('Images uploaded successfully');
+                console.log('All images uploaded and processing started');
+                setSelectedImages([]);
+                alert('Images uploaded successfully');                
+            } else if (mode === 'search') {
+                const result = await api.post('/api/search', {
+                    storage_key: storageKeys[0],
+                    event_id: eventId,
+                });
+
+                console.log(result.data);
+            }
 
         } catch (error: any) {
             console.error('Error uploading images: ', error);
             alert('Failed to upload images');
         } finally {
+            onDismiss();
             setUploading(false);
         }
     };
 
-    return (
-        <SafeAreaView>
-            <Button mode='contained' onPress={pickImages} disabled={uploading} icon="image-multiple">Select Images</Button>
+    const handleCancel = () => {
+        setSelectedImages([])
+        onDismiss();
+    }
 
-            {selectedImages.length > 0 && (
-                <>
-                    <Text> Selected: {selectedImages.length} image{selectedImages.length !== 1 ? 's' : ''}</Text>
-                    <Button mode='contained' onPress={uploadImagesToS3} disabled={uploading} icon='upload'>{uploading ? 'Uploading...' : 'Upload Images'}</Button>
-                </>
-            )}
-        </SafeAreaView>
+    return (
+        <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modalContainer}>
+            <View>
+                <Text variant='headlineSmall'>Upload New Photos</Text>
+                {mode === 'upload' ? (
+                    <Button mode='contained' onPress={pickImages} disabled={uploading} icon="image-multiple">Select Images</Button>
+                ) : (
+                    <Button mode='contained' onPress={pickSearch} disabled={uploading} icon="image">Choose a Photo</Button>
+                )}
+                
+                {selectedImages.length > 0 && (
+                    <>
+                        <FlatList
+                            data={selectedImages}
+                            numColumns={3}
+                            inverted={true}
+                            keyExtractor={(item, index) => item.fileName ?? item.uri ?? index.toString()}
+                            renderItem={({ item }) => (
+                                <Image
+                                    source={{ uri: item.uri }}
+                                    style={styles.thumbnail}
+                                />
+                            )}
+                        />
+                        <Text> Selected: {selectedImages.length} image{selectedImages.length !== 1 ? 's' : ''}</Text>
+                        <Button mode='contained' onPress={uploadImagesToS3} disabled={uploading} icon='upload'>{uploading ? 'Uploading...' : 'Upload Images'}</Button>
+                    </>
+                )}
+                <Button mode='contained' onPress={handleCancel} style={{ marginTop: 10 }}>Cancel</Button>
+            </View>
+        </Modal>
     )
 }
 
 export default ImageUploadComponent
+
+const styles = StyleSheet.create({
+    modalContainer: {
+        backgroundColor: 'white',
+        padding: 20,
+    },
+    thumbnail: {
+        height: 100,
+        width: 100,
+        margin: 4
+    },
+})
