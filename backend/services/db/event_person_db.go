@@ -45,16 +45,34 @@ func (r *EventPersonRepo) NewEventPerson(person *models.EventPerson) (uint, erro
 	return person.ID, nil
 }
 
+// Update Event Person name
+func (r *EventPersonRepo) UpdatePersonName(personId uint, newName string) error {
+	// fetch the person's event id
+	var person models.EventPerson
+	if err := r.DB.Select("event_id").First(&person, personId).Error; err != nil {
+		return err
+	}
+
+	if err := r.DB.Model(&models.EventPerson{}).Where("id = ?", personId).Update("name", newName).Error; err != nil {
+		return err
+	}
+
+	if err := r.DB.Model(models.Event{}).Where("id = ?", person.EventID).Update("updated_at", time.Now()).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // Find EventPerson name by EventPerson Id
 func (r *EventPersonRepo) FindNameById(personId uint) (string, error) {
-	var result string
+	var result models.EventPerson
 	err := r.DB.Table("event_people").Select("name").Where("id = ?", personId).First(&result).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", nil
 	} else if err != nil {
 		return "", err
 	}
-	return result, nil
+	return result.Name, nil
 }
 
 // Find all EventPerson name and id by EventId

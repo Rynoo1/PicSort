@@ -210,10 +210,15 @@ func (s *ImageService) MatchAndLinkFaces(ctx context.Context, eventId uint, phot
 						}
 						matchId = fmt.Sprintf("%d", newPersonId)
 						log.Printf("[Matching] Matched face not in DB, New Person created - id: %d", newPersonId)
+
+						if err := txDetectRepo.UpdateDetectionsWithPersonID(matchFace, matchId); err != nil {
+							return fmt.Errorf("failed updating matched face: %w", err)
+						}
 					} else {
 						return fmt.Errorf("error finding matching face entry: %w", err)
 					}
 				} else if matchUint == 0 {
+					log.Printf("[Matching] Matched face - id: %d", matchUint)
 					newPersonId, err := txEventPersonRepo.NewEventPerson(&models.EventPerson{
 						Name:    "New Person",
 						EventID: eventId,
@@ -223,6 +228,10 @@ func (s *ImageService) MatchAndLinkFaces(ctx context.Context, eventId uint, phot
 					}
 					matchId = fmt.Sprintf("%d", newPersonId)
 					log.Printf("[Matching] Matched face has no person, New Person created - id: %d", newPersonId)
+
+					if err := txDetectRepo.UpdateDetectionsWithPersonID(matchFace, matchId); err != nil {
+						return fmt.Errorf("failed updating matched face: %w", err)
+					}
 				} else {
 					matchId = strconv.FormatUint(uint64(matchUint), 10)
 					log.Printf("[Matching] Face Recognised - id: %d", matchUint)

@@ -218,7 +218,7 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
 	var (
 		people     []db.ReturnPeople
-		imageKeys  []db.ImageResults
+		imageKeys  []db.EventImages
 		err1, err2 error
 		wg         sync.WaitGroup
 	)
@@ -277,10 +277,25 @@ func ReturnEventData(c *fiber.Ctx, eventRepo *services.AppServices) error {
 		if res.Err != nil {
 			continue
 		}
+
+		var matchedImage db.EventImages
+		for _, img := range imageKeys {
+			if img.ID == res.ID {
+				matchedImage = img
+				break
+			}
+		}
+
+		// var personIds []uint
+		// for _, p := range matchedImage.EventPeople {
+		// 	personIds = append(personIds, p.ID)
+		// }
+
 		urlObjects = append(urlObjects, map[string]interface{}{
-			"id":      res.ID,
-			"url":     res.URL,
-			"expires": res.Expire,
+			"id":           res.ID,
+			"url":          res.URL,
+			"expires":      res.Expire,
+			"image_people": matchedImage.EventPeople,
 		})
 	}
 

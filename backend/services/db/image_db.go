@@ -19,6 +19,23 @@ type ImageResults struct {
 	ID         uint   `json:"id" gorm:"column:id"`
 }
 
+type EventPersonRef struct {
+	ID uint `json:"id"`
+}
+
+type EventImages struct {
+	ID          uint   `json:"id"`
+	StorageKey  string `json:"storage_key"`
+	EventPeople []struct {
+		ID uint `json:"id"`
+	} `json:"event_people"`
+}
+
+type EventPersonInfo struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
 type ImageRepo struct {
 	DB *gorm.DB
 }
@@ -43,8 +60,8 @@ func (r *ImageRepo) AddImage(image *models.Photos) (uint, error) {
 	if result.Error != nil {
 		return 0, result.Error
 	}
-	if err := r.DB.Model(models.Event{}).Where("id = ?", image.EventID).Update("updated_at", time.Now()); err != nil {
-		return 0, err.Error
+	if err := r.DB.Model(models.Event{}).Where("id = ?", image.EventID).Update("updated_at", time.Now()).Error; err != nil {
+		return 0, err
 	}
 	return image.ID, nil
 }
@@ -73,11 +90,34 @@ func (r *ImageRepo) FindAllInCollection(eventPersonId uint) ([]string, []uint, e
 }
 
 // Find all images in a specific event
-func (r *ImageRepo) FindAllEventImages(eventId uint) ([]ImageResults, error) {
-	var storageKeys []ImageResults
-	err := r.DB.Model(&models.Photos{}).Select("id, storage_key").Where("event_id = ?", eventId).Find(&storageKeys).Error
+func (r *ImageRepo) FindAllEventImages(eventId uint) ([]EventImages, error) {
+	var photos []models.Photos
+
+	err := r.DB.Preload("FaceDetections.Person").Where("event_id = ?", eventId).Find(&photos).Error
 	if err != nil {
 		return nil, err
 	}
-	return storageKeys, nil
+
+	var results []EventImages
+	for _, photo := range photos {
+		eventImage := EventImages{
+			ID:         photo.ID,
+			StorageKey: photo.StorageKey,
+		}
+
+		uniquePeople := make(map[uint]struct{})
+		for _, fd := range photo.FaceDetections {
+			if fd.Person.ID != 0 {
+				uniquePeople[fd.Person.ID] = struct{}{}
+			}
+		}
+
+		for id := range uniquePeople {
+			eventImage.EventPeople = append(eventImage.EventPeople, EventPersonRef{ID: id})
+		}
+
+		results = append(results, eventImage)
+	}
+
+	return results, nil
 }

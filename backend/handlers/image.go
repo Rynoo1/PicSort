@@ -2,16 +2,20 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/Rynoo1/PicSort/backend/services"
 	"github.com/gofiber/fiber/v2"
 )
 
-type PersonImages struct {
-	Name   string                     `json:"name"`
-	Images []services.PresignedObject `json:"images"`
+// type PersonImages struct {
+// 	Name   string                     `json:"name"`
+// 	Images []services.PresignedObject `json:"images"`
+// }
+
+type SearchPerson struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }
 
 // Process single image
@@ -136,31 +140,36 @@ func SearchCollection(c *fiber.Ctx, repo *services.ImageService) error {
 		})
 	}
 
-	// find all storage keys for specific event person
-	keys, _, err := repo.ImageRepo.FindAllInCollection(matchingId)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
+	// // find all storage keys for specific event person
+	// keys, _, err := repo.ImageRepo.FindAllInCollection(matchingId)
+	// if err != nil {
+	// 	return c.Status(500).JSON(fiber.Map{
+	// 		"error": err.Error(),
+	// 	})
+	// }
 
-	// generate presigned urls for all images
-	urls, err := repo.S3Service.GetPresignViewObjects(c.Context(), keys, body.EventId)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
+	// // generate presigned urls for all images
+	// urls, err := repo.S3Service.GetPresignViewObjects(c.Context(), keys, body.EventId)
+	// if err != nil {
+	// 	return c.Status(500).JSON(fiber.Map{
+	// 		"error": err.Error(),
+	// 	})
+	// }
 
-	go func() {
-		if delErr := repo.S3Service.DeleteObject(c.Context(), body.StorageKey); delErr != nil {
-			log.Printf("Failed to delete search image %s: %v", body.StorageKey, delErr)
-		}
-	}()
+	// go func() {
+	// 	if delErr := repo.S3Service.DeleteObject(c.Context(), body.StorageKey); delErr != nil {
+	// 		log.Printf("Failed to delete search image %s: %v", body.StorageKey, delErr)
+	// 	}
+	// }()
 
-	out := PersonImages{
-		Name:   personName,
-		Images: urls,
+	// out := PersonImages{
+	// 	Name:   personName,
+	// 	Images: urls,
+	// }
+
+	out := SearchPerson{
+		ID:   matchingId,
+		Name: personName,
 	}
 
 	return c.JSON(out)

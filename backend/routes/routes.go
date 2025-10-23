@@ -65,6 +65,11 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 		return handlers.AddUsers(c, svc)
 	})
 
+	// Update Event Person name
+	protected.Post("/event/updatename", func(c *fiber.Ctx) error { // person_id; new_name
+		return handlers.UpdatePersonName(c, svc)
+	})
+
 	// **USER**
 	// Return all events for specific user
 	protected.Post("/user/events", func(c *fiber.Ctx) error { // user in locals
