@@ -15,10 +15,11 @@ interface ImageUploadProps {
     visible: boolean;
     onDismiss: () => void;
     onPersonFound?: (personId: number, personName: string) => void;
+    refetch?: () => void;
     mode: 'upload' | 'search';
 }
 
-const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPersonFound }: ImageUploadProps) => {
+const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPersonFound, refetch }: ImageUploadProps) => {
     const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
     const [uploading, setUploading] = useState(false);
 
@@ -128,7 +129,6 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPer
                     // }],
                 });
 
-                console.log(storageKey);
                 return storageKey;
             });
 
@@ -143,6 +143,7 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPer
 
                 console.log('All images uploaded and processing started');
                 setSelectedImages([]);
+                refetch?.();
                 alert('Images uploaded successfully');
 
             } else if (mode === 'search') {

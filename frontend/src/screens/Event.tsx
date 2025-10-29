@@ -271,8 +271,8 @@ const Event = () => {
                     </TouchableOpacity>
                     <Button mode='contained' style={{ width: '60%' }} onPress={() => deletePhoto(activeId!)}>{deleting ? ('Deleting...') : ('Delete')}</Button>
                 </Modal>
-                <CreateEvent visible={usersModal} onDismiss={hideModal} mode='search' />
-                <ImageUploadComponent visible={upload} onDismiss={hideModal} eventId={eventId} userId={user?.id ?? 0} mode={uploadMode} onPersonFound={navigatePerson} />
+                <CreateEvent visible={usersModal} onDismiss={hideModal} mode='search' eventId={eventId} />
+                <ImageUploadComponent visible={upload} onDismiss={hideModal} eventId={eventId} userId={user?.id ?? 0} mode={uploadMode} onPersonFound={navigatePerson} refetch={fetchEventDetails} />
                 <RenamePerson visible={rename} onDismiss={hideModal} personId={renameId!} refreshEvent={fetchEventDetails} personName={oldName} />
             </Portal>
             <View style={styles.topContainer}>

@@ -4,12 +4,14 @@ import { ActivityIndicator, Button, Chip, List, Modal, Portal, Searchbar, Text, 
 import { useAuth } from '../context/AuthContext';
 import { UserAPI } from '../api/users';
 import { EventAPI } from '../api/events';
+import api from '../api/client';
 
 interface CreateEventModalProps {
   visible: boolean;
   onDismiss: () => void;
   reFetch?: () => void;
   mode: 'create' | 'search';
+  eventId?: number;
 }
 
 type User = {
@@ -17,7 +19,7 @@ type User = {
 	username: string;
 }
 
-const CreateEvent = ({ visible, onDismiss, reFetch, mode }: CreateEventModalProps) => {
+const CreateEvent = ({ visible, onDismiss, reFetch, mode, eventId }: CreateEventModalProps) => {
 
   const { user: loggedInUser } = useAuth();
 
@@ -95,6 +97,22 @@ const CreateEvent = ({ visible, onDismiss, reFetch, mode }: CreateEventModalProp
     }
   }
 
+  const newUser = async (eventId: number, ) => {
+    console.log('adding user...');
+    console.log(allUserIds);
+    try {
+      await api.post('/api/event/addusers', { event_id: eventId, new_user_id: allUserIds });
+      reFetch?.();
+      onDismiss();
+      setSearchQuery('');
+      alert("User added");
+    } catch (error) {
+      onDismiss();
+      setSearchQuery('');
+      alert('Error adding user:' + error)
+    }
+  }
+
   return (
       <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modalContainer}>
 					<View style={styles.modalView}>
@@ -159,7 +177,7 @@ const CreateEvent = ({ visible, onDismiss, reFetch, mode }: CreateEventModalProp
             ) : (
               <View style={styles.buttonContainer}>
                 <Button style={{ flex: 1 }} onPress={onDismiss} mode='contained'>Cancel</Button>
-                <Button style={{ flex: 1 }} mode='contained'>Add Users</Button>
+                <Button style={{ flex: 1 }} mode='contained' onPress={() => newUser(eventId!)} >Add Users</Button>
               </View>
             )}
 

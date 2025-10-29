@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const register = async (email: string, password: string, username: string) => {
         try {
             const normalisedEmail = email.trim().toLowerCase();
-            await api.post("/auth/register", { normalisedEmail, password, username });
+            await api.post("/auth/register", { email: normalisedEmail, password, username });
             await login(email, password);
         } catch (err: any) {
             console.error("Registration failed: ", err.response?.data || err.message);
