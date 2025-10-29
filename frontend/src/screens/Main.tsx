@@ -41,6 +41,10 @@ const Main = () => {
 			setError(null);
 
 			const response = await EventAPI.returnAllEvents();
+			
+			if (response.data.length < 1 ) {
+				setEvents([]);
+			} else {
 
 			const formattedEvents: Eventt[] = response.data.map((event: any) => ({
 				id: event.id,
@@ -48,9 +52,8 @@ const Main = () => {
 				images: event.images?.map((img: any) => img.storage_key || img) || [],
 			}));
 
-			console.log(formattedEvents[0].images);
-
 			setEvents(formattedEvents);
+		}
 		} catch (error: any) {
 			console.error('Error fetching events: ', error);
 			setError(error.response?.data?.message || error.message || 'failed to load events');
@@ -61,7 +64,7 @@ const Main = () => {
 
 	if (loading) {
 		return (
-			<SafeAreaView>
+			<SafeAreaView style={styles.container}>
 				<ActivityIndicator size='large' color='#D94E5A' />
 			</SafeAreaView>
 		)
@@ -69,8 +72,8 @@ const Main = () => {
 
 	if (error) {
 		return (
-			<SafeAreaView>
-				<Text>{error}</Text>
+			<SafeAreaView style={styles.container}>
+				<Text variant='headlineLarge' style={styles.heading}>{error}</Text>
 			</SafeAreaView>
 		)
 	}
@@ -79,7 +82,7 @@ const Main = () => {
 	<PaperProvider>
 		<SafeAreaView style={styles.container}>
 			<Portal>
-				<CreateEvent visible={visible} onDismiss={hideModal} mode='create' />
+				<CreateEvent visible={visible} onDismiss={hideModal} mode='create' reFetch={fetchAllEvents} />
 			</Portal>
 			<Text variant='headlineLarge' style={styles.heading}>All Events</Text>
 			<FlatList
@@ -88,7 +91,10 @@ const Main = () => {
 				keyExtractor={(item) => item.id.toString()}
 				renderItem={({ item }) => <EventCard event={item} />}
 				refreshing={loading}
-				// onRefresh={fetchAllEvents}
+				onRefresh={fetchAllEvents}
+				ListEmptyComponent={(
+					<Text variant='headlineLarge' style={{ color: "#D94E5A", marginLeft: 20 }}>No Events Yet</Text>
+				)}
 			/>
 			<FAB 
 			icon='plus'
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
   },
   heading: {
 	marginTop: 15,
-	marginLeft: 5,
+	marginLeft: 10,
 	marginBottom: 10,
 	color: '#D94E5A',
   },

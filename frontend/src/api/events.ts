@@ -15,4 +15,10 @@ export const EventAPI = {
 
     updatePersonName: (personId: number, newName: string) =>
         api.post("/api/event/updatename", { person_id: personId, new_name: newName }),
+
+    deletePhoto: (photoId: number) =>
+        api.post("/api/image/delete", { photo_id: photoId }),
+
+    deleteEvent: (eventId: number) =>
+        api.post("/api/event/delete", { event_id: eventId }),
 }

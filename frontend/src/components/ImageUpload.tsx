@@ -7,16 +7,18 @@ import { Button, Modal, Text } from 'react-native-paper';
 import { View, StyleSheet, ScrollView, FlatList } from 'react-native';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Image } from 'expo-image';
+import { handleAxiosError } from '../utils/errorHandler';
 
 interface ImageUploadProps {
     eventId: number;
     userId: number;
     visible: boolean;
     onDismiss: () => void;
+    onPersonFound?: (personId: number, personName: string) => void;
     mode: 'upload' | 'search';
 }
 
-const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode }: ImageUploadProps) => {
+const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPersonFound }: ImageUploadProps) => {
     const [selectedImages, setSelectedImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
     const [uploading, setUploading] = useState(false);
 
@@ -141,7 +143,8 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode }: Ima
 
                 console.log('All images uploaded and processing started');
                 setSelectedImages([]);
-                alert('Images uploaded successfully');                
+                alert('Images uploaded successfully');
+
             } else if (mode === 'search') {
                 const result = await api.post('/api/search', {
                     storage_key: storageKeys[0],
@@ -149,11 +152,19 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode }: Ima
                 });
 
                 console.log(result.data);
+                if (result.data.id == null && result.data.name == null ) {
+                    alert("No matches: " + result.data.message);
+                } else {
+                    onPersonFound?.(result.data.id, result.data.name);
+                }
             }
 
         } catch (error: any) {
-            console.error('Error uploading images: ', error);
-            alert('Failed to upload images');
+            const message = handleAxiosError(error);
+            alert(`Upload failed: ${message}`);
+            
+            console.error('Error uploading images:', message);
+
         } finally {
             onDismiss();
             setUploading(false);
@@ -168,11 +179,16 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode }: Ima
     return (
         <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modalContainer}>
             <View>
-                <Text variant='headlineSmall'>Upload New Photos</Text>
                 {mode === 'upload' ? (
-                    <Button mode='contained' onPress={pickImages} disabled={uploading} icon="image-multiple">Select Images</Button>
+                    <>
+                        <Text variant='headlineSmall'>Upload New Photos</Text>
+                        <Button mode='contained' onPress={pickImages} disabled={uploading} icon="image-multiple">Select Images</Button>
+                    </>
                 ) : (
-                    <Button mode='contained' onPress={pickSearch} disabled={uploading} icon="image">Choose a Photo</Button>
+                    <>
+                        <Text variant='headlineSmall'>Search for a Face</Text>
+                        <Button mode='contained' onPress={pickSearch} disabled={uploading} icon="image">Take a Picture</Button>
+                    </>
                 )}
                 
                 {selectedImages.length > 0 && (
@@ -193,7 +209,7 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode }: Ima
                         <Button mode='contained' onPress={uploadImagesToS3} disabled={uploading} icon='upload'>{uploading ? 'Uploading...' : 'Upload Images'}</Button>
                     </>
                 )}
-                <Button mode='contained' onPress={handleCancel} style={{ marginTop: 10 }}>Cancel</Button>
+                <Button mode='contained' onPress={handleCancel} disabled={uploading} style={{ marginTop: 10 }}>Cancel</Button>
             </View>
         </Modal>
     )

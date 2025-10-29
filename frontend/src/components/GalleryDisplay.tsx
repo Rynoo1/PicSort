@@ -7,7 +7,7 @@ import { Image } from 'expo-image'
 type GalleryDisplayProps = {
     item: GalleryItem;
     view: 'gallery' | 'people';
-    showModal: (url: string) => void;
+    showModal: (url: string, id: number) => void;
     showUpload?: () => void;
 }
 
@@ -22,7 +22,7 @@ const GalleryDisplay: React.FC<GalleryDisplayProps> = ({ item, showModal, showUp
                 </View>
             </TouchableOpacity>
     ) : (
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => showModal(item.url)}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => showModal(item.url, Number(item.id))}>
                 <Image style={styles.galleryImage} source={{ uri: item.url }} />
             </TouchableOpacity>        
         )

@@ -7,6 +7,7 @@ import { RootStackParamList } from '../types/navigation'
 import { useNavigation } from '@react-navigation/native'
 import * as Haptics from 'expo-haptics'
 import { Image } from 'expo-image'
+import { EventAPI } from '../api/events'
 
 type EventCardProps = {
     event: Eventt;
@@ -26,6 +27,18 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             eventName: event.name,
         });
     };
+
+    const deleteEvent = async () => {
+        Haptics.selectionAsync();
+        try {
+            console.log('deleting...');
+            const res = await EventAPI.deleteEvent(event.id);
+            console.log(res.data);
+            alert("Event deleted");
+        } catch (error) {
+            console.error(error);
+        }
+    }
 
   return (
       <View style={styles.container} >
@@ -51,7 +64,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             showsHorizontalScrollIndicator={false}
         />
 
-        <TouchableOpacity onPress={handleNavigation}><Text variant='headlineMedium' style={styles.title} >{event.name}</Text></TouchableOpacity>
+        <TouchableOpacity onPress={handleNavigation} onLongPress={deleteEvent}><Text variant='headlineMedium' style={styles.title} >{event.name}</Text></TouchableOpacity>
 
       </View>
   )

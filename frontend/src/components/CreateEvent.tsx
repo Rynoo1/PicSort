@@ -8,6 +8,7 @@ import { EventAPI } from '../api/events';
 interface CreateEventModalProps {
   visible: boolean;
   onDismiss: () => void;
+  reFetch?: () => void;
   mode: 'create' | 'search';
 }
 
@@ -16,7 +17,7 @@ type User = {
 	username: string;
 }
 
-const CreateEvent = ({ visible, onDismiss, mode }: CreateEventModalProps) => {
+const CreateEvent = ({ visible, onDismiss, reFetch, mode }: CreateEventModalProps) => {
 
   const { user: loggedInUser } = useAuth();
 
@@ -53,14 +54,12 @@ const CreateEvent = ({ visible, onDismiss, mode }: CreateEventModalProps) => {
   const searchUsers = async (query: string) => {
     try {
       const response = await UserAPI.searchUsers(query);
-      console.log(loggedInUser);
       
       const filteredResults = response.data.filter(
         (user: User) => 
           user.id !== Number(loggedInUser?.id) &&
           !selectedUsers.find(selected => selected.id === user.id)
       );
-      console.log(filteredResults);
 
       setSearchResults(filteredResults);
     } catch (error) {
@@ -89,6 +88,7 @@ const CreateEvent = ({ visible, onDismiss, mode }: CreateEventModalProps) => {
       console.log("All ids", ids);
       const success = await EventAPI.createEvent(name, ids);
       console.log('success', success.data);
+      reFetch?.();
       onDismiss();
     } catch (error) {
       console.error(error);
@@ -151,10 +151,19 @@ const CreateEvent = ({ visible, onDismiss, mode }: CreateEventModalProps) => {
 							</View>
 						</ScrollView>
 
-						<View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginTop: 20 }}>
-              <Button onPress={onDismiss} mode='contained'>Cancel</Button>
-							<Button onPress={() => createEvent(eventName, allUserIds)} mode='contained'>Create</Button>
-						</View>
+            {mode === 'create' ? (
+              <View style={styles.buttonContainer}>
+                <Button style={{ flex: 1 }} onPress={onDismiss} mode='contained'>Cancel</Button>
+                <Button style={{ flex: 1 }} onPress={() => createEvent(eventName, allUserIds)} mode='contained'>Create</Button>
+              </View>              
+            ) : (
+              <View style={styles.buttonContainer}>
+                <Button style={{ flex: 1 }} onPress={onDismiss} mode='contained'>Cancel</Button>
+                <Button style={{ flex: 1 }} mode='contained'>Add Users</Button>
+              </View>
+            )}
+
+
 						
 					</View>
 				</Modal>
@@ -167,14 +176,17 @@ export default CreateEvent
 const styles = StyleSheet.create({
   modalContainer: {
 	backgroundColor: 'white', 
-	padding: 20,
+	padding: 10,
+  margin: 10,
+  borderRadius: 10,
+  marginBottom: 70,
   },
   modalView: {
 	flexDirection: 'column',
   },
   chipScrollContainer: {
 	maxHeight: 120,
-	marginTop: 15,
+	marginTop: 5,
   },
   chipsWrapper: {
 	flexDirection: 'row',
@@ -205,6 +217,13 @@ const styles = StyleSheet.create({
   searchContainer: {
 	position: 'relative',
 	zIndex: 10,
-	marginBottom: 16,
+	marginBottom: 10,
+  },
+  buttonContainer: {
+    flexDirection: 'row', 
+    justifyContent: 'space-evenly', 
+    marginTop: 15,
+    marginBottom: 15,
+    gap: 20,
   },
 })

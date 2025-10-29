@@ -13,6 +13,7 @@ import ImageUploadComponent from '../components/ImageUpload';
 import { useAuth } from '../context/AuthContext';
 import { GalleryItem } from '../types/images';
 import GalleryDisplay from '../components/GalleryDisplay';
+import RenamePerson from '../components/RenamePerson';
 
 type EventPeople = {
     id: number;
@@ -43,24 +44,34 @@ const Event = () => {
     const { user } = useAuth();
 
     const [eventData, setEventData] = useState<EventData | null>(null);
+    const [eventPeople, setEventPeople] = useState<EventPeople[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [visible, setVisible] = useState(false);
     const [usersModal, setUsersModal] = useState(false);
     const [upload, setUpload] = useState(false);
+    const [rename, setRename] = useState(false);
+    const [renameId, setRenameId] = useState<number | null>(null);
+    const [oldName, setOldName] = useState("");
     const [uploadMode, setUploadMode] = useState<'upload' | 'search' >('upload');
     const [imageSource, setImageSource] = useState<string>('');
+    const [activeId, setActiveId] = useState<number | null>(null);
     const [photoMap, setPhotoMap] = useState<Map<string, { id: number; url: string; personIds: number[] }>>(new Map());
+    const [deleting, setDeleting] = useState(false);
 
     const hideModal = () => {
         setVisible(false);
         setUsersModal(false);
         setUpload(false);
         setImageSource("");
+        setActiveId(null);
+        setRename(false);
+        setRenameId(null);
         Haptics.selectionAsync();
     }
-    const showModal = (url: string) => {
+    const showModal = (url: string, id: number) => {
         setImageSource(url);
+        setActiveId(id);
         setVisible(true);
     }
     const showUsers = () => {
@@ -68,12 +79,19 @@ const Event = () => {
         Haptics.selectionAsync();
     }
     const showUpload = () => {
+        setUploadMode('upload');
         setUpload(true);
         Haptics.selectionAsync();
     }
     const showImageSearch = () => {
         setUploadMode('search');
         setUpload(true);
+        Haptics.selectionAsync();
+    }
+    const showRename = (personId: number, oldName: string) => {
+        setOldName(oldName);
+        setRenameId(personId);        
+        setRename(true);
         Haptics.selectionAsync();
     }
 
@@ -84,26 +102,6 @@ const Event = () => {
     useEffect(() => {
         fetchEventDetails();
     }, [eventId]);
-
-    // const findPeoplePhotos = async ( personId: number ) => {
-    //     const urls: string[] = [];
-
-    //     for (const [, photo] of photoMap.entries()) {
-    //         if (photo.personIds.includes(personId)) {
-    //             urls.push(photo.url);
-    //         }
-    //     }
-    //     console.log(urls);
-    // }
-
-    const updateName = async ( personId: number ) => {
-        try {
-            const update = await EventAPI.updatePersonName(personId, "Ryno");
-            console.log('success')
-        } catch (error) {
-            console.log('error updating name');
-        }
-    }
 
     const navigatePerson = ( personId: number, personName: string ) => {
         Haptics.selectionAsync();
@@ -199,16 +197,6 @@ const Event = () => {
                 expiresAt: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
             });
 
-            // const galleryData: GalleryItem[] = [
-            //     { type: 'header' },
-            //     ...(formattedData.images?.map(img => ({
-            //         type: 'image' as const,
-            //         id: img.id,
-            //         url: img.url,
-            //         expires: img.expires || '',
-            //     })) || []),
-            // ]
-
             setEventData(formattedData);
         } catch (err: any) {
             console.error('Error fetching event details:', err);
@@ -217,6 +205,19 @@ const Event = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (!eventData || photoMap.size === 0) return;
+
+        const people = eventData.people.filter(person => {
+            const photoCount = Array.from(photoMap.values())
+                .filter(photo => photo.personIds.includes(Number(person.id))).length;
+            
+            return photoCount > 2;
+        });
+
+        setEventPeople(people);
+    }, [eventData, photoMap]);
 
     if (loading) {
         return (
@@ -244,17 +245,35 @@ const Event = () => {
         })) || []),
     ];
 
+    const deletePhoto = async (photoId: number) => {
+        setDeleting(true);
+        try {
+            console.log('deleting...');
+            await EventAPI.deletePhoto(photoId);
+            fetchEventDetails();
+            alert("Success");
+            setDeleting(false);
+            hideModal();
+        } catch (error) {
+            console.error(error);
+            setDeleting(false);
+            alert("error:" + error);
+        }
+    }
+
   return (
     <PaperProvider>
         <SafeAreaView style={styles.container}>
             <Portal>
                 <Modal visible={visible} onDismiss={hideModal}>
-                    <TouchableOpacity onPress={hideModal} style={{ width: '100%', height: '100%' }}>
+                    <TouchableOpacity onPress={hideModal} style={{ width: '100%', height: '90%' }}>
                         <Image source={{ uri: imageSource }} style={{ width: '100%', height: '100%' }} contentFit='contain' cachePolicy="disk" />
                     </TouchableOpacity>
+                    <Button mode='contained' style={{ width: '60%' }} onPress={() => deletePhoto(activeId!)}>{deleting ? ('Deleting...') : ('Delete')}</Button>
                 </Modal>
                 <CreateEvent visible={usersModal} onDismiss={hideModal} mode='search' />
-                <ImageUploadComponent visible={upload} onDismiss={hideModal} eventId={eventId} userId={user?.id ?? 0} mode={uploadMode} />
+                <ImageUploadComponent visible={upload} onDismiss={hideModal} eventId={eventId} userId={user?.id ?? 0} mode={uploadMode} onPersonFound={navigatePerson} />
+                <RenamePerson visible={rename} onDismiss={hideModal} personId={renameId!} refreshEvent={fetchEventDetails} personName={oldName} />
             </Portal>
             <View style={styles.topContainer}>
                 <Text style={{ color: 'black' }} variant='headlineLarge'> {eventName} </Text>
@@ -273,16 +292,19 @@ const Event = () => {
             <View style={styles.bottomContainer}>
                 <Text style={{ color: 'black' }} variant='headlineLarge'> People </Text>
                 <FlatList
-                    data={eventData.people}
+                    data={eventPeople}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     style={{ marginLeft: 5 }}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={({ item }) => (
-                        <TouchableOpacity style={styles.personItem} onPress={() => navigatePerson(Number(item.id), item.name)} onLongPress={() => console.log(item.id)}>
-                            <Image style={styles.personThumbnail} source={{ uri: item.imageUrl }} />
+                        <TouchableOpacity style={styles.personItem} onPress={() => navigatePerson(Number(item.id), item.name)} onLongPress={() => showRename(Number(item.id), item.name)}>
+                            <Image style={styles.personThumbnail} source={{ uri: item.imageUrl }} cachePolicy='disk' />
                             <Text variant='titleLarge'>{item.name}</Text>
                         </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={(
+                        <Text variant='headlineMedium' style={{ marginTop: '25%', marginLeft: 10 }}>No People folders</Text>
                     )}
                 />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 5 }}>

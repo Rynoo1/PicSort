@@ -29,11 +29,11 @@ const Login = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, flexDirection: 'column', padding: 10, backgroundColor: '#0D0D0D' }}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <SafeAreaView style={styles.container}>
+        <View style={styles.view}>
             <Text variant="headlineLarge" style={styles.heading}> Welcome to PicSort </Text>
             <Text variant="headlineMedium" style={styles.heading} > Login </Text>
-            <TextInput style={{ width: '90%', margin: 10 }}
+            <TextInput style={styles.textInput}
                 mode='outlined'
                 label="Email"
                 keyboardType='email-address'
@@ -43,12 +43,13 @@ const Login = () => {
                 textColor='black'
                 onChangeText={userEmail => setEmail(userEmail)}
             />
-            <TextInput style={{ width: '90%', margin: 10 }}
+            <TextInput style={styles.textInput}
                 label="Password"
                 onChangeText={userPassword => setPassword(userPassword)}
                 secureTextEntry={!passwordVisible} mode='outlined' right={<TextInput.Icon icon={passwordVisible ? "eye-off" : "eye"} onPress={() => setPasswordVisible(!passwordVisible)} />} 
             />
             <Button style={styles.button} mode='contained-tonal' onPress={handleLogin}>Login</Button>
+            <Button style={[styles.button, { margin: 10 }]} mode='contained-tonal' onPress={() => navigation.replace("Register")}>Register</Button>
         </View>
     </SafeAreaView>
   )
@@ -62,5 +63,20 @@ const styles = StyleSheet.create({
   },
   heading: {
       color: '#D90D1E'
-  }
+  },
+  container: {
+      flex: 1,
+      flexDirection: 'column',
+      padding: 10,
+      backgroundColor: '#0D0D0D',
+  },
+  view: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
+  textInput: {
+      width: '90%',
+      margin: 10,
+  },
 })
