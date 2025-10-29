@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"sync"
 
 	"github.com/Rynoo1/PicSort/backend/models"
@@ -70,7 +71,17 @@ func AddUsers(c *fiber.Ctx, eventRepo *services.AppServices) error {
 		})
 	}
 
-	addUser := c.Locals("user").(models.User)
+	log.Printf("users to be added: %v", body.NewUserID)
+
+	if len(body.NewUserID) == 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "no users provided",
+		})
+	}
+
+	addUser := c.Locals("user").(*models.User)
+
+	log.Printf("logged in user: %v", addUser)
 
 	exists, err := eventRepo.EventRepo.CheckUser(addUser.ID, body.EventID)
 	if err != nil {

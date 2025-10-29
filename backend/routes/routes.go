@@ -71,7 +71,7 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 	})
 
 	// Add users to events
-	protected.Post("/event/addusers", func(c *fiber.Ctx) error { // event_id; []new_users_ids
+	protected.Post("/event/addusers", func(c *fiber.Ctx) error { // event_id; []new_user_id
 		return handlers.AddUsers(c, svc)
 	})
 

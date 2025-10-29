@@ -1,7 +1,7 @@
 package db
 
 import (
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Rynoo1/PicSort/backend/models"
@@ -43,18 +43,33 @@ func (r *EventRepo) CreateEvent(event *models.Event) error {
 }
 
 // Add multiple users to an event
-func (r *EventRepo) AddUsersToEvent(userID []uint, eventID uint) error {
-	users := make([]models.User, len(userID))
-	for i, id := range userID {
-		users[i] = models.User{ID: id}
+func (r *EventRepo) AddUsersToEvent(userIDs []uint, eventID uint) error {
+	if len(userIDs) == 0 {
+		return fmt.Errorf("no user IDs provided")
 	}
 
 	event := models.Event{ID: eventID}
 
-	err := r.DB.Model(&event).Association("Users").Append(users)
-	if err != nil {
-		return err
+	var existing []models.User
+	if err := r.DB.Model(&event).Association("Users").Find(&existing); err != nil {
+		return fmt.Errorf("failed to fetch existing users: %w", err)
 	}
+
+	existingIDs := make(map[uint]struct{})
+	for _, u := range existing {
+		existingIDs[u.ID] = struct{}{}
+	}
+
+	for _, id := range userIDs {
+		if _, exists := existingIDs[id]; exists {
+			continue
+		}
+		user := models.User{ID: id}
+		if err := r.DB.Model(&event).Association("Users").Append(&user); err != nil {
+			return fmt.Errorf("failed to add user %d: %w", id, err)
+		}
+	}
+
 	return nil
 }
 
@@ -71,15 +86,12 @@ func (r *EventRepo) RemoveUsers(userId, eventId uint) error {
 
 // Check if a user is in an event
 func (r *EventRepo) CheckUser(userId, eventId uint) (bool, error) {
-	var result struct{}
-	err := r.DB.Table("event_users").Where("event_id = ? AND user_id = ?", eventId, userId).First(&result).Error
-
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, nil
-	} else if err != nil {
+	var count int64
+	err := r.DB.Table("event_users").Where("event_id = ? AND user_id = ?", eventId, userId).Count(&count).Error
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	return count > 0, nil
 }
 
 // Returns all event names and ids for a specific user,
