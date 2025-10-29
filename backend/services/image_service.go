@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/Rynoo1/PicSort/backend/models"
 	"github.com/Rynoo1/PicSort/backend/services/db"
@@ -28,6 +29,10 @@ type ImageService struct {
 	RekognitionClient *rekognition.Client
 	S3Service         *S3Service
 }
+
+var (
+	ErrNoFaceMatch = errors.New("no matching face found")
+)
 
 // Batch Image Processing using concurrency (waitgroups and goroutines)
 func (s *ImageService) BatchImageProcessing(ctx context.Context, storageKeys []string, uploadedBy, eventId uint) ([]uint, []error) {
@@ -250,6 +255,7 @@ func (s *ImageService) FindFace(ctx context.Context, storageKey string, eventId 
 	// check if rekognition collection exists
 	EventId := strconv.FormatUint(uint64(eventId), 10)
 	collectionId := fmt.Sprintf("event-%s", EventId)
+
 	exists, err := CollectionExists(ctx, s.RekognitionClient, collectionId)
 	if err != nil {
 		return 0, fmt.Errorf("error finding collection: %w", err)
@@ -275,12 +281,15 @@ func (s *ImageService) FindFace(ctx context.Context, storageKey string, eventId 
 
 	// if no matches - return no matches found
 	if len(searchOutput) == 0 {
-		return 0, fmt.Errorf("no matching faces found")
+		return 0, ErrNoFaceMatch
 	}
 
 	// find event person id for matching person (using highest similarity entry)
 	matchId, err := s.DetectionRepo.FindMatches(*searchOutput[0].Face.FaceId)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrNoFaceMatch
+		}
 		return 0, fmt.Errorf("error finding matching event person id: %w", err)
 	}
 
@@ -314,6 +323,54 @@ func (s *ImageService) ServeUrls(ctx context.Context, eventPerson models.EventPe
 	return returnLinks, nil
 }
 
+// Delete image from DB and S3
+func (s *ImageService) DeletePhoto(ctx context.Context, photoID uint) error {
+	tx := s.ImageRepo.DB.Begin()
+
+	var photo models.Photos
+	if err := tx.First(&photo, photoID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("photo not found: %w", err)
+	}
+
+	BucketName := os.Getenv("BUCKET_NAME")
+
+	// delete rekognition entries
+	if len(photo.FaceDetections) > 0 {
+		var faceIDs []string
+		for _, fd := range photo.FaceDetections {
+			if fd.RekognitionID != "" {
+				faceIDs = append(faceIDs, fd.RekognitionID)
+			}
+		}
+
+		collectionID := fmt.Sprintf("event-%d", photo.EventID)
+		if err := DeleteFaces(ctx, s.RekognitionClient, collectionID, faceIDs); err != nil {
+			log.Printf("[WARN] failed to delete Rekognition faces for photo %d: %v", photo.ID, err)
+		}
+	}
+
+	// delete S3 file
+	if err := s.S3Service.DeleteFile(ctx, BucketName, photo.StorageKey); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete photo from S3: %w", err)
+	}
+
+	// delete DB record
+	if err := tx.Delete(&photo).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to photo from DB: %w", err)
+	}
+
+	// update event timestamp
+	if err := tx.Model(&models.Event{}).Where("id = ?", photo.EventID).Update("updated_at", time.Now()).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update event tinmestamp: %w", err)
+	}
+
+	return tx.Commit().Error
+}
+
 // Save to image location DB -> ObjectKey, UploadedByID
 // Check Rekognition Collections -> EventID
 // IndexFaces -> collectionID
@@ -323,8 +380,3 @@ func (s *ImageService) ServeUrls(ctx context.Context, eventPerson models.EventPe
 // Compare face to Collection -> faceID, collectionID
 // No matches --> create new event_people, create face_detection entry
 // If there are matches --> find matching face_detections entry, get event_people_id, create/update face_detections entry for this detection
-
-// Album images endpoint
-// Looks up images in the DB
-// Calls AWS SDK to generate presigned URLs for each object
-// Returns imageId, presignedUrl, expiresAt

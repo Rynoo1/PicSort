@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Rynoo1/PicSort/backend/models"
@@ -35,6 +36,16 @@ func (r *EventPersonRepo) WithTx(tx *gorm.DB) *EventPersonRepo {
 
 // Creates new event person
 func (r *EventPersonRepo) NewEventPerson(person *models.EventPerson) (uint, error) {
+	var count int64
+
+	if err := r.DB.Model(&models.EventPerson{}).Where("event_id = ?", person.EventID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+
+	if person.Name == "" || person.Name == "New Person" {
+		person.Name = fmt.Sprintf("person %d", count+1)
+	}
+
 	result := r.DB.Create(person)
 	if result.Error != nil {
 		return 0, result.Error

@@ -29,10 +29,20 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 		return handlers.GenerateUploadURLs(c, svc.S3Service)
 	})
 
+	// Delete image
+	protected.Post("/image/delete", func(c *fiber.Ctx) error { // photo_id
+		return handlers.DeletePhoto(c, svc)
+	})
+
 	// **EVENTS**  all images?
 	// Create event
 	protected.Post("/event/create", func(c *fiber.Ctx) error { // event_mame; []user_ids
 		return handlers.CreateEvent(c, svc)
+	})
+
+	// Delete event
+	protected.Post("/event/delete", func(c *fiber.Ctx) error { // event_id
+		return handlers.DeleteEvent(c, svc)
 	})
 
 	// Return all info for all events for user
@@ -91,6 +101,7 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 		return handlers.SearchCollection(c, svc.ImageService)
 	})
 
+	// Search users
 	protected.Get("/users/search/", func(c *fiber.Ctx) error {
 		return handlers.SearchUsers(c, svc)
 	})

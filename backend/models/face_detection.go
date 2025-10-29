@@ -9,7 +9,7 @@ type FaceDetection struct {
 	EventPersonID *uint `json:"event_person_id"`          // foreign key
 	EventID       uint  `json:"event_id" gorm:"not null"` // foreign key
 
-	Photo  Photos      `json:"photo" gorm:"foreignKey:PhotoID;references:ID"`        // Relationship - Belongs to Photos
-	Person EventPerson `json:"person" gorm:"foreignKey:EventPersonID;references:ID"` // Relationship - Belongs to EventPeople
-	Event  Event       `json:"event" gorm:"foreignKey:EventID;references:ID"`        // Relationship - Belongs to Events
+	Photo  Photos      `json:"photo" gorm:"foreignKey:PhotoID;references:ID;constraint:OnDelete:CASCADE;"`         // Relationship - Belongs to Photos
+	Person EventPerson `json:"person" gorm:"foreignKey:EventPersonID;references:ID;constraint:OnDelete:SET NULL;"` // Relationship - Belongs to EventPeople
+	Event  Event       `json:"event" gorm:"foreignKey:EventID;references:ID;constraint:OnDelete:CASCADE;"`         // Relationship - Belongs to Events
 }

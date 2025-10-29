@@ -77,12 +77,18 @@ func main() {
 		RekognitionClient: rekClient,
 		S3Service:         s3Service,
 	}
+	eventService := &services.EventService{
+		EventRepo:         eventRepo,
+		S3Service:         s3Service,
+		RekognitionClient: rekClient,
+	}
 	appServices := &services.AppServices{
 		S3Service:       s3Service,
 		ImageService:    imageServices,
 		EventRepo:       eventRepo,
 		UserService:     userService,
 		EventPersonRepo: eventPersonRepo,
+		EventService:    eventService,
 	}
 	authService := services.NewAuthService(jwtSecret)
 

@@ -1,17 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/Rynoo1/PicSort/backend/services"
 	"github.com/gofiber/fiber/v2"
 )
-
-// type PersonImages struct {
-// 	Name   string                     `json:"name"`
-// 	Images []services.PresignedObject `json:"images"`
-// }
 
 type SearchPerson struct {
 	ID   uint   `json:"id"`
@@ -124,9 +121,24 @@ func SearchCollection(c *fiber.Ctx, repo *services.ImageService) error {
 		})
 	}
 
+	bucketName := os.Getenv("BUCKET_NAME")
+
+	defer func() {
+		if err := repo.S3Service.DeleteFile(c.Context(), bucketName, body.StorageKey); err != nil {
+			log.Printf("[WARN] failed to delete search image %s: %v", body.StorageKey, err)
+		}
+	}()
+
 	// find matching faces in the event collection
 	matchingId, err := repo.FindFace(c.Context(), body.StorageKey, body.EventId)
 	if err != nil {
+		if errors.Is(err, services.ErrNoFaceMatch) {
+			return c.JSON(fiber.Map{
+				"message": "no matching person found",
+				"id":      nil,
+				"name":    nil,
+			})
+		}
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -140,40 +152,12 @@ func SearchCollection(c *fiber.Ctx, repo *services.ImageService) error {
 		})
 	}
 
-	// // find all storage keys for specific event person
-	// keys, _, err := repo.ImageRepo.FindAllInCollection(matchingId)
-	// if err != nil {
-	// 	return c.Status(500).JSON(fiber.Map{
-	// 		"error": err.Error(),
-	// 	})
-	// }
-
-	// // generate presigned urls for all images
-	// urls, err := repo.S3Service.GetPresignViewObjects(c.Context(), keys, body.EventId)
-	// if err != nil {
-	// 	return c.Status(500).JSON(fiber.Map{
-	// 		"error": err.Error(),
-	// 	})
-	// }
-
-	// go func() {
-	// 	if delErr := repo.S3Service.DeleteObject(c.Context(), body.StorageKey); delErr != nil {
-	// 		log.Printf("Failed to delete search image %s: %v", body.StorageKey, delErr)
-	// 	}
-	// }()
-
-	// out := PersonImages{
-	// 	Name:   personName,
-	// 	Images: urls,
-	// }
-
 	out := SearchPerson{
 		ID:   matchingId,
 		Name: personName,
 	}
 
 	return c.JSON(out)
-	// delete reference image from bucket after complete
 }
 
 // Generate presign URLs to upload images
@@ -216,4 +200,29 @@ func GenerateUploadURLs(c *fiber.Ctx, repo *services.S3Service) error {
 	return c.Status(200).JSON(fiber.Map{
 		"uploads": uploads,
 	})
+}
+
+// Delete image
+func DeletePhoto(c *fiber.Ctx, repo *services.AppServices) error {
+
+	var body struct {
+		PhotoId uint `json:"photo_id"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid request",
+		})
+	}
+
+	if err := repo.ImageService.DeletePhoto(c.Context(), body.PhotoId); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": "image deleted",
+	})
+
 }

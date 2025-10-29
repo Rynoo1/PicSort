@@ -7,8 +7,8 @@ type Photos struct {
 	EventID    uint `json:"event_id" gorm:"not null"`    // foreign key
 	UploadedBy uint `json:"uploaded_by" gorm:"not null"` // foreign key
 
-	FaceDetections []FaceDetection `json:"face_detections" gorm:"foreignKey:PhotoID"` // One to Many relationship with FaceDetections{HasMany}
+	FaceDetections []FaceDetection `json:"face_detections" gorm:"foreignKey:PhotoID;constraint:OnDelete:CASCADE;"` // One to Many relationship with FaceDetections{HasMany}
 
-	Event Event `json:"event" gorm:"foreignKey:EventID;references:ID"`   // Relationship - Belongs to Events
-	User  User  `json:"user" gorm:"foreignKey:UploadedBy;references:ID"` // Relationship - Belongs to Users
+	Event Event `json:"event" gorm:"foreignKey:EventID;references:ID;constraint:OnDelete:CASCADE"` // Relationship - Belongs to Events
+	User  User  `json:"user" gorm:"foreignKey:UploadedBy;references:ID"`                           // Relationship - Belongs to Users
 }

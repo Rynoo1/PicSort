@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -143,4 +144,41 @@ func CheckFaceCount(ctx context.Context, client *rekognition.Client, storageKey 
 	}
 
 	return len(details.FaceDetails), nil
+}
+
+func DeleteFaces(ctx context.Context, client *rekognition.Client, collectionID string, faceIDs []string) error {
+	if len(faceIDs) == 0 {
+		return nil
+	}
+
+	var faceIdPtrs []string
+	faceIdPtrs = append(faceIdPtrs, faceIDs...)
+
+	_, err := client.DeleteFaces(ctx, &rekognition.DeleteFacesInput{
+		CollectionId: aws.String(collectionID),
+		FaceIds:      faceIdPtrs,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete Rekognition faces: %w", err)
+	}
+
+	log.Printf("[REKOGNITION] Deleted %d faces from collection %s", len(faceIDs), collectionID)
+	return nil
+}
+
+func DeleteCollection(ctx context.Context, client *rekognition.Client, collectionID string) error {
+	_, err := client.DeleteCollection(ctx, &rekognition.DeleteCollectionInput{
+		CollectionId: aws.String(collectionID),
+	})
+	if err != nil {
+		var rnfe *types.ResourceNotFoundException
+		if errors.As(err, &rnfe) {
+			log.Printf("[REKOGNITION] Collection %s is already deleted", collectionID)
+			return nil
+		}
+		return fmt.Errorf("failed to delete Rekognition collection %s: %w", collectionID, err)
+	}
+
+	log.Printf("[REKOGNTION] Deleted collection %s", collectionID)
+	return nil
 }

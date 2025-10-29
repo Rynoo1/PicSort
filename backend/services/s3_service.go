@@ -2,13 +2,14 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 )
 
@@ -119,12 +120,55 @@ func (s *S3Service) GetPresignedUploadURLs(ctx context.Context, files []struct {
 	return uploads, nil
 }
 
-// Delete object from bucket
-func (s *S3Service) DeleteObject(ctx context.Context, key string) error {
-	bucketName := os.Getenv("BUCKET_NAME")
+// Delete image from S3
+func (s *S3Service) DeleteFile(ctx context.Context, bucket, key string) error {
 	_, err := s.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(bucketName),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
-	return err
+	if err != nil {
+		var noKey *types.NoSuchKey
+		if errors.As(err, &noKey) {
+			log.Printf("[S3] File not found: %s", key)
+			return nil
+		}
+		return fmt.Errorf("failed to delete file %s: %w", key, err)
+	}
+
+	return nil
+}
+
+// Delete multiple images from S3
+func (s *S3Service) DeleteObjects(ctx context.Context, bucket string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+
+	var identifiers []types.ObjectIdentifier
+	for _, key := range keys {
+		identifiers = append(identifiers, types.ObjectIdentifier{Key: aws.String(key)})
+	}
+
+	input := &s3.DeleteObjectsInput{
+		Bucket: aws.String(bucket),
+		Delete: &types.Delete{
+			Objects: identifiers,
+			Quiet:   aws.Bool(true),
+		},
+	}
+
+	output, err := s.Client.DeleteObjects(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed to delete objects from bucket %s: %w", bucket, err)
+	}
+
+	if len(output.Errors) > 0 {
+		for _, e := range output.Errors {
+			log.Printf("[S3] Failed to delete %s: %v", aws.ToString(e.Key), aws.ToString(e.Message))
+		}
+		return fmt.Errorf("some objects failed to delete")
+	}
+
+	log.Printf("[S3] Deleted %d objects from bucket %s", len(output.Deleted), bucket)
+	return nil
 }

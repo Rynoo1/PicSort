@@ -83,7 +83,6 @@ func (r *EventRepo) CheckUser(userId, eventId uint) (bool, error) {
 }
 
 // Returns all event names and ids for a specific user,
-// TODO: Return first/random 5 images from the event as well - structure: [ { id, name, images[] }, ]
 func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEventWithImages, error) {
 	var user models.User
 	err := r.DB.Preload("Events").First(&user, userId).Error

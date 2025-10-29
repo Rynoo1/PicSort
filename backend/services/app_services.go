@@ -8,4 +8,5 @@ type AppServices struct {
 	EventRepo       *db.EventRepo
 	UserService     *UserService
 	EventPersonRepo *db.EventPersonRepo
+	EventService    *EventService
 }
