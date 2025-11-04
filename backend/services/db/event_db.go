@@ -21,6 +21,7 @@ type ReturnEventWithImages struct {
 	EventId   uint           `json:"id"`
 	EventName string         `json:"name"`
 	Images    []ImageResults `json:"images"`
+	UserCount int64          `json:"user_count"`
 }
 
 // constructor
@@ -73,6 +74,24 @@ func (r *EventRepo) AddUsersToEvent(userIDs []uint, eventID uint) error {
 	return nil
 }
 
+// Rename Event
+func (r *EventRepo) RenameEvent(eventId uint, newName string) error {
+	if newName == "" {
+		return fmt.Errorf("event name cannot be empty")
+	}
+
+	result := r.DB.Model(&models.Event{}).Where("id = ?", eventId).Update("event_name", newName)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("event not found or name unchanged")
+	}
+
+	return nil
+}
+
 // Remove users from events
 func (r *EventRepo) RemoveUsers(userId, eventId uint) error {
 	event := models.Event{ID: eventId}
@@ -103,7 +122,10 @@ func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEventWithImages, error) 
 	}
 
 	result := make([]ReturnEventWithImages, 0, len(user.Events))
+
 	for _, ev := range user.Events {
+		userCount := r.DB.Model(&ev).Association("Users").Count()
+
 		var images []ImageResults
 		err := r.DB.Model(&models.Photos{}).
 			Select("id, storage_key").
@@ -118,6 +140,7 @@ func (r *EventRepo) FindAllEvents(userId uint) ([]ReturnEventWithImages, error) 
 			EventId:   ev.ID,
 			EventName: ev.EventName,
 			Images:    images,
+			UserCount: userCount,
 		})
 	}
 	return result, nil

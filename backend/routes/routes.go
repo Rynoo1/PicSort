@@ -45,6 +45,11 @@ func SetupRoutes(app *fiber.App, svc *services.AppServices, db *gorm.DB, authSer
 		return handlers.DeleteEvent(c, svc)
 	})
 
+	// Rename event
+	protected.Post("/event/rename", func(c *fiber.Ctx) error { // event_id; new_name
+		return handlers.RenameEvent(c, svc)
+	})
+
 	// Return all info for all events for user
 	protected.Post("/event/all", func(c *fiber.Ctx) error {
 		return handlers.ReturnAllEvents(c, svc)

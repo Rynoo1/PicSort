@@ -57,6 +57,31 @@ func CreateEvent(c *fiber.Ctx, eventRepo *services.AppServices) error {
 	return c.Status(201).JSON(event)
 }
 
+// Rename Event
+func RenameEvent(c *fiber.Ctx, repo *services.AppServices) error {
+
+	var body struct {
+		EventId uint   `json:"event_id"`
+		NewName string `json:"new_name"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
+
+	if err := repo.EventRepo.RenameEvent(body.EventId, body.NewName); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "event renamed",
+	})
+
+}
+
 // Check if user can add users to this event, then add users to event
 func AddUsers(c *fiber.Ctx, eventRepo *services.AppServices) error {
 
@@ -70,8 +95,6 @@ func AddUsers(c *fiber.Ctx, eventRepo *services.AppServices) error {
 			"error": "invalid request body",
 		})
 	}
-
-	log.Printf("users to be added: %v", body.NewUserID)
 
 	if len(body.NewUserID) == 0 {
 		return c.Status(400).JSON(fiber.Map{
