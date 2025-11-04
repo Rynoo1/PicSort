@@ -1,6 +1,6 @@
 import { StyleSheet, View, ScrollView, FlatList, TouchableOpacity, ImageBackground } from 'react-native'
 import React, { useState } from 'react'
-import { overlay, Text } from 'react-native-paper'
+import { Button, IconButton, overlay, Text } from 'react-native-paper'
 import { Eventt } from '../types/event'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../types/navigation'
@@ -11,11 +11,12 @@ import { EventAPI } from '../api/events'
 
 type EventCardProps = {
     event: Eventt;
+    deleteEvent: (id: number) => void;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const EventCard: React.FC<EventCardProps> = ({ event }) => {
+const EventCard: React.FC<EventCardProps> = ({ event, deleteEvent }) => {
     const navigation = useNavigation<NavigationProp>();
     const scrollableImages = event.images.slice(0, 3);
     const lastImage = event.images[3];
@@ -28,28 +29,29 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         });
     };
 
-    const deleteEvent = async () => {
-        Haptics.selectionAsync();
-        try {
-            console.log('deleting...');
-            const res = await EventAPI.deleteEvent(event.id);
-            console.log(res.data);
-            alert("Event deleted");
-        } catch (error) {
-            console.error(error);
-        }
-    }
+    // const deleteEvent = async () => {
+    //     Haptics.selectionAsync();
+    //     try {
+    //         console.log('deleting...');
+    //         const res = await EventAPI.deleteEvent(event.id);
+    //         console.log(res.data);
+    //         alert("Event deleted");
+    //     } catch (error) {
+    //         console.error(error);
+    //     }
+    // }
 
   return (
-      <View style={styles.container} >
+      <View style={styles.container}>
         <FlatList
             data={scrollableImages}
             horizontal
+            style={{ borderRadius: 10, }}
             keyExtractor={(item, index) => `${event.id}-img-${index}`}
             renderItem={({ item }) => (
                 <View>
                     <TouchableOpacity onPress={handleNavigation}>
-                        <Image style={styles.image} source={{ uri: item }} />
+                        <Image style={styles.image} source={{ uri: item }} placeholder={{ blurhash: 'L5H2EC=PM+yV0g-mq.wG9c010J}I' }} />
                     </TouchableOpacity>
                 </View>
             )}
@@ -64,12 +66,18 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             showsHorizontalScrollIndicator={false}
         />
 
-        <TouchableOpacity onPress={handleNavigation} onLongPress={deleteEvent}><Text variant='headlineMedium' style={styles.title} >{event.name}</Text></TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', }}>
+            <TouchableOpacity onPress={handleNavigation} style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', paddingRight: 48 }}>
+                <Text variant='headlineMedium' numberOfLines={1} ellipsizeMode='tail' style={styles.title} >{event.name}</Text>
+                <Text variant='bodyLarge' style={{ color: '#F2E3D5', marginStart: 10, }}>{event.userCount} Users</Text>
+            </TouchableOpacity>
+            <IconButton icon="delete" size={24} iconColor='#f2668bea' style={{ marginEnd: 6 }} onPress={() => {console.log('delete ', event.id); deleteEvent(event.id) }} />
+        </View>
 
       </View>
   )
 }
-
+//024059
 export default EventCard
 
 const styles = StyleSheet.create({
@@ -80,21 +88,27 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     container: {
-        marginBottom: 40,
-        marginLeft: 5,
+        marginBottom: 30,
+        paddingHorizontal: 9,
+        paddingTop: 8,
+        borderRadius: 15,
+        // borderWidth: 2,
+        // borderColor: '#03A688',
+        backgroundColor: '#026773',
+        flexDirection: 'column'
     },
     title: {
-        color: '#c5efebff',
+        color: '#F2E3D5',
+        flex: 1,
     },
     footer: {
         width: 150,
         height: 150,
-        marginRight: 10,
         borderRadius: 10,
         overflow: 'hidden',
     },
     footerText: {
-        color: 'white',
+        color: '#F2E3D5',
         textAlign: 'center',
         justifyContent: 'center',
     },

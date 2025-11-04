@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import { Button, Text, TextInput } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../types/navigation';
+import { ImageBackground } from 'expo-image';
 
 const Login = () => {
 
@@ -29,54 +30,59 @@ const Login = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ImageBackground source={require("../../background/canvas.png")} style={{ flex: 1, justifyContent: 'center' }} contentFit='fill'>
+      <View style={styles.container} >
         <View style={styles.view}>
-            <Text variant="headlineLarge" style={styles.heading}> Welcome to PicSort </Text>
-            <Text variant="headlineMedium" style={styles.heading} > Login </Text>
-            <TextInput style={styles.textInput}
+            <Text variant="headlineLarge" style={[styles.heading, { marginBottom: 3 }]}> Welcome to <Text variant='headlineLarge' style={styles.subHeading}>PicSort</Text> </Text>
+            <Text variant="headlineMedium" style={[styles.subHeading, { marginBottom: 3 }]} > Login </Text>
+            <TextInput style={{ marginBottom: 7, width: '90%' }}
                 mode='outlined'
                 label="Email"
                 keyboardType='email-address'
-                selectionColor='#D5F2EF'
-                outlineColor='#D5F2EF'
-                activeOutlineColor='#D5F2EF'
+                outlineColor='#f2e3d5ff'
+                activeOutlineColor='#f2668bdb'
                 textColor='black'
                 onChangeText={userEmail => setEmail(userEmail)}
             />
-            <TextInput style={styles.textInput}
+            <TextInput style={{ marginBottom: 10, width: '90%' }}
                 label="Password"
+                outlineColor='#f2e3d5ff'
+                activeOutlineColor='#f2668bdb'
                 onChangeText={userPassword => setPassword(userPassword)}
                 secureTextEntry={!passwordVisible} mode='outlined' right={<TextInput.Icon icon={passwordVisible ? "eye-off" : "eye"} onPress={() => setPasswordVisible(!passwordVisible)} />} 
             />
-            <Button style={styles.button} mode='contained-tonal' onPress={handleLogin}>Login</Button>
-            <Button style={[styles.button, { margin: 10 }]} mode='contained-tonal' onPress={() => navigation.replace("Register")}>Register</Button>
+            <Button style={styles.Button} buttonColor='#03A688' textColor='#F2E3D5' mode='contained' onPress={handleLogin}>Login</Button>
+            <Text variant='headlineSmall' style={{ color: '#F2E3D5' }}>Don't have an account yet?</Text>
+            <Button style={[styles.Button, { borderColor: '#03A688', borderWidth: 2, marginTop: 4, }]} textColor='#03A688' mode='outlined' onPress={() => navigation.replace("Register")}>Sign Up</Button>
         </View>
-    </SafeAreaView>
+      </View>
+    </ImageBackground>
   )
 }
 
 export default Login
 
 const styles = StyleSheet.create({
-  button: {
-      backgroundColor: '#D5F2EF',
-  },
   heading: {
-      color: '#D90D1E'
+    color: '#03A688',
+  },
+  subHeading: {
+    color: '#f2668bdb',
   },
   container: {
-      flex: 1,
-      flexDirection: 'column',
-      padding: 10,
-      backgroundColor: '#0D0D0D',
+    flexDirection: 'row',
+    margin: 15,
+    paddingHorizontal: 5,
+    paddingVertical: 20,
+    borderRadius: 20,
+    backgroundColor: '#024059bc',
   },
   view: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    flex: 1,
+    alignItems: 'center',
   },
-  textInput: {
-      width: '90%',
-      margin: 10,
+  Button: {
+    borderRadius: 7,
+    marginBottom: 3,
   },
 })

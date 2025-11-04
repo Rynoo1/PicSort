@@ -20,39 +20,39 @@ function RootNavigator() {
 
   if (loading) {
     return (
-      <ActivityIndicator size='large' />
+      <ActivityIndicator color='#D94E5A' size='large' />
     )
   }
 
   return (
     <NavigationContainer>
-      {!token || !user ? (
-        <Stack.Navigator>
-          <Stack.Screen options={{ headerShown: false }} name='Login' component={Login} />
-          <Stack.Screen options={{ headerShown: false }} name='Register' component={Register} />
-        </Stack.Navigator>
-      ) : (
-        <Stack.Navigator>
-          <Stack.Screen options={{ headerShown: false }} name='Home' component={Main} />
-          <Stack.Screen options={{ headerShown: false }} name='Event' component={Event} />
-          <Stack.Screen options={{ headerShown: false }} name='Person'>
-            {({ route }) => {
-              const params = route.params as RootStackParamList['Person'] | undefined;
+        {!token || !user ? (
+          <Stack.Navigator>
+            <Stack.Screen options={{ headerShown: false }} name='Login' component={Login} />
+            <Stack.Screen options={{ headerShown: false }} name='Register' component={Register} />
+          </Stack.Navigator>
+        ) : (
+          <Stack.Navigator>
+            <Stack.Screen options={{ headerShown: false }} name='Home' component={Main} />
+            <Stack.Screen options={{ headerShown: false }} name='Event' component={Event} />
+            <Stack.Screen options={{ headerShown: false }} name='Person'>
+              {({ route }) => {
+                const params = route.params as RootStackParamList['Person'] | undefined;
 
-              if (!params) {
-                return (
-                  <View>
-                    <Text>No person data provided</Text>
-                  </View>
-                );
-              }
-              return <Person {...(route.params) as any} />;
-            }}
-          </Stack.Screen>
-        </Stack.Navigator>
-      )}
-
+                if (!params) {
+                  return (
+                    <View>
+                      <Text>No person data provided</Text>
+                    </View>
+                  );
+                }
+                return <Person {...(route.params) as any} />;
+              }}
+            </Stack.Screen>
+          </Stack.Navigator>
+        )}
     </NavigationContainer>
+    
   )
 }
 

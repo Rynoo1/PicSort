@@ -1,6 +1,6 @@
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, Button, Modal, PaperProvider, Portal, Text } from 'react-native-paper'
+import { ActivityIndicator, Appbar, Button, Dialog, IconButton, Modal, PaperProvider, Portal, Text } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { RouteProp, useNavigation, useRoute, NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
@@ -58,6 +58,7 @@ const Event = () => {
     const [activeId, setActiveId] = useState<number | null>(null);
     const [photoMap, setPhotoMap] = useState<Map<string, { id: number; url: string; personIds: number[] }>>(new Map());
     const [deleting, setDeleting] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const hideModal = () => {
         setVisible(false);
@@ -67,6 +68,7 @@ const Event = () => {
         setActiveId(null);
         setRename(false);
         setRenameId(null);
+        setConfirmDelete(false);
         Haptics.selectionAsync();
     }
     const showModal = (url: string, id: number) => {
@@ -221,15 +223,15 @@ const Event = () => {
 
     if (loading) {
         return (
-            <SafeAreaView>
-                <ActivityIndicator size='large' />
+            <SafeAreaView style={[styles.container, { paddingTop: 70 }]}>
+                <ActivityIndicator color='#D94E5A' size='large' />
             </SafeAreaView>
         );
     }
 
     if (error || !eventData) {
         return (
-            <SafeAreaView>
+            <SafeAreaView style={styles.container}>
                 <Text>{error || 'failed to load event'}</Text>
             </SafeAreaView>
         )
@@ -263,20 +265,36 @@ const Event = () => {
 
   return (
     <PaperProvider>
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             <Portal>
-                <Modal visible={visible} onDismiss={hideModal}>
+                <Modal visible={visible} onDismiss={hideModal} style={{ padding: 3, }}>
+                    {/* <Button mode='contained' style={{ width: '60%' }} onPress={() => setConfirmDelete(true)}>{deleting ? ('Deleting...') : ('Delete')}</Button> */}
+                    {/* <IconButton icon="delete" size={25} iconColor='#f2668bea' containerColor='#024059' style={{ marginEnd: 6 }} onPress={() => setConfirmDelete(true)} /> */}
                     <TouchableOpacity onPress={hideModal} style={{ width: '100%', height: '90%' }}>
                         <Image source={{ uri: imageSource }} style={{ width: '100%', height: '100%' }} contentFit='contain' cachePolicy="disk" />
                     </TouchableOpacity>
-                    <Button mode='contained' style={{ width: '60%' }} onPress={() => deletePhoto(activeId!)}>{deleting ? ('Deleting...') : ('Delete')}</Button>
+                    <IconButton icon="delete" size={37} iconColor='#f2668bea' containerColor='#024059' style={{ left: '75%' }} disabled={deleting} onPress={() => setConfirmDelete(true)} />
                 </Modal>
+                <Dialog visible={confirmDelete} onDismiss={hideModal} style={{ backgroundColor: '#024059', borderColor: '#03A688' }}>
+                    <Dialog.Title>Are you sure?</Dialog.Title>
+                    <Dialog.Content>
+                        <Text variant='bodyMedium'>Confirm delete</Text>
+                        <Dialog.Actions>
+                            <Button onPress={() => deletePhoto(activeId!)}>Confirm</Button>
+                            <Button onPress={hideModal}>Cancel</Button>
+                        </Dialog.Actions>
+                    </Dialog.Content>
+                </Dialog>
                 <CreateEvent visible={usersModal} onDismiss={hideModal} mode='search' eventId={eventId} />
                 <ImageUploadComponent visible={upload} onDismiss={hideModal} eventId={eventId} userId={user?.id ?? 0} mode={uploadMode} onPersonFound={navigatePerson} refetch={fetchEventDetails} />
-                <RenamePerson visible={rename} onDismiss={hideModal} personId={renameId!} refreshEvent={fetchEventDetails} personName={oldName} />
+                <RenamePerson visible={rename} onDismiss={hideModal} personId={renameId!} refreshEvent={fetchEventDetails} personName={oldName} mode='person' />
             </Portal>
             <View style={styles.topContainer}>
-                <Text style={{ color: 'black' }} variant='headlineLarge'> {eventName} </Text>
+                <Appbar.Header style={{ backgroundColor: '#024059', }}>
+                    <Appbar.BackAction color='#F2E3D5' onPress={() => navigation.goBack()} />
+                    <Appbar.Content color='#03A688' title={eventName} />
+                    <Appbar.Action icon="account-plus" color='#f2668bff' onPress={showUsers} />
+                </Appbar.Header>
                 <FlatList
                     style={{ padding: 5 }}
                     data={galleryData}
@@ -290,46 +308,48 @@ const Event = () => {
                 />
             </View>
             <View style={styles.bottomContainer}>
-                <Text style={{ color: 'black' }} variant='headlineLarge'> People </Text>
+                <Text style={{ color: '#F2E3D5', marginTop: 12 }} variant='headlineLarge'> People </Text>
                 <FlatList
                     data={eventPeople}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     style={{ marginLeft: 5 }}
                     keyExtractor={(item) => item.id.toString()}
+                    ListHeaderComponent={(
+                        <TouchableOpacity style={[styles.personItem, styles.personThumbnail, { justifyContent: 'center', borderColor: '#03A688', borderWidth: 2 }]} onPress={showImageSearch}>
+                            <Text variant='titleLarge' style={{ color: '#f2668bff', textAlign: 'center' }}>Find{"\n"}a{"\n"}Face</Text>
+                        </TouchableOpacity>
+                    )}
                     renderItem={({ item }) => (
                         <TouchableOpacity style={styles.personItem} onPress={() => navigatePerson(Number(item.id), item.name)} onLongPress={() => showRename(Number(item.id), item.name)}>
                             <Image style={styles.personThumbnail} source={{ uri: item.imageUrl }} cachePolicy='disk' />
-                            <Text variant='titleLarge'>{item.name}</Text>
+                            <Text variant='titleLarge' style={{ color: '#F2E3D5' }} >{item.name}</Text>
                         </TouchableOpacity>
                     )}
                     ListEmptyComponent={(
-                        <Text variant='headlineMedium' style={{ marginTop: '25%', marginLeft: 10 }}>No People folders</Text>
+                        <Text variant='headlineMedium' style={{ marginTop: '13%', marginLeft: 10, color: '#F2E3D5' }}>No People yet</Text>
                     )}
                 />
-                <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 5 }}>
-                    <Button mode='contained' onPress={showUsers}>Add Users</Button>
-                    <Button mode='contained' onPress={showImageSearch}>Find a Face</Button>
-                </View>
             </View>
-        </SafeAreaView>
+        </View>
     </PaperProvider>
   )
 }
 
 export default Event
-
+// 2c3950
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         flexDirection: 'column',
-        backgroundColor: 'wheat',
+        backgroundColor: '#024059',
+        paddingHorizontal: 3,
     },
     topContainer: {
         flex: 2,
     },
     bottomContainer: {
-        flex: 1.1,
+        flex: 1,
     },
     personItem: {
         alignItems: 'center',

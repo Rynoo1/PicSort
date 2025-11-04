@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { ActivityIndicator, Button, Chip, List, Modal, Portal, Searchbar, Text, TextInput } from 'react-native-paper'
 import { useAuth } from '../context/AuthContext';
@@ -86,30 +86,38 @@ const CreateEvent = ({ visible, onDismiss, reFetch, mode, eventId }: CreateEvent
   }
 
   const createEvent = async (name: string, ids: number[]) => {
-    try {
-      console.log("All ids", ids);
-      const success = await EventAPI.createEvent(name, ids);
-      console.log('success', success.data);
-      reFetch?.();
-      onDismiss();
-    } catch (error) {
-      console.error(error);
+    if (name !== '') {
+      try {
+        console.log("All ids", ids);
+        const success = await EventAPI.createEvent(name, ids);
+        console.log('success', success.data);
+        reFetch?.();
+        onDismiss();
+      } catch (error) {
+        console.error(error);
+      }
+    } else {
+      alert('Event name cannot be empty');
     }
   }
 
   const newUser = async (eventId: number, ) => {
     console.log('adding user...');
     console.log(allUserIds);
-    try {
-      await api.post('/api/event/addusers', { event_id: eventId, new_user_id: allUserIds });
-      reFetch?.();
-      onDismiss();
-      setSearchQuery('');
-      alert("User added");
-    } catch (error) {
-      onDismiss();
-      setSearchQuery('');
-      alert('Error adding user:' + error)
+    if (allUserIds.length > 1) {
+      try {
+        await api.post('/api/event/addusers', { event_id: eventId, new_user_id: allUserIds });
+        reFetch?.();
+        onDismiss();
+        setSearchQuery('');
+        alert("User added");
+      } catch (error) {
+        onDismiss();
+        setSearchQuery('');
+        alert('Error adding user:' + error)
+      }
+    } else {
+      alert('No users selected');
     }
   }
 
@@ -118,24 +126,33 @@ const CreateEvent = ({ visible, onDismiss, reFetch, mode, eventId }: CreateEvent
 					<View style={styles.modalView}>
             {mode === 'create' ? (
               <>
-                <Text variant='displaySmall' style={{ marginBottom: 10 }}>Create New Event</Text>
-                <TextInput mode='outlined' style={{ marginBottom: 15, height: 45, fontSize: 20 }} value={eventName} onChangeText={setEventName} />
+                <Text variant='displaySmall' style={styles.title}>Create New Event</Text>
+                  <TextInput 
+                    mode='outlined'
+                    style={styles.textInput}
+                    value={eventName}
+                    onChangeText={setEventName}
+                    label='Event Name'
+                    outlineColor='#03A688'
+                    activeOutlineColor='#03A688'
+                  />
               </>
             ) : (
-              <Text variant='displaySmall' style={{ marginBottom: 10 }}>Add Users</Text>
+              <></>
             )}
 
 						<View style={styles.searchContainer}>
-							<Searchbar 
-								style={styles.searchBar} 
-								inputStyle={styles.searchInput} 
-								placeholder='Search'
-								value={searchQuery} 
-								onChangeText={setSearchQuery} 
-								onFocus={() => setIsSearchFocused(true)} 
-								onBlur={() => setTimeout(() => setIsSearchFocused(false), 800)} 
-								loading={isSearching}
-							/>
+              <Text variant='headlineMedium' style={styles.subHead}>Add Users</Text>
+                <Searchbar 
+                  style={styles.searchBar} 
+                  inputStyle={styles.searchInput} 
+                  placeholder='Search for users'
+                  value={searchQuery}
+                  onChangeText={setSearchQuery} 
+                  onFocus={() => setIsSearchFocused(true)} 
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 1500)} 
+                  loading={isSearching}
+                />
 								{showResults && (
 									<View style={styles.searchOverlay}>
 										<ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
@@ -162,7 +179,7 @@ const CreateEvent = ({ visible, onDismiss, reFetch, mode, eventId }: CreateEvent
 						<ScrollView style={styles.chipScrollContainer}>
 							<View style={styles.chipsWrapper}>
 								{selectedUsers.map((user) => (
-									<Chip key={user.id.toString()} onClose={() => removeUser(user.id)}>
+									<Chip key={user.id.toString()} onClose={() => removeUser(user.id) }>
                     {user.username}
                   </Chip>
 								))}
@@ -171,13 +188,13 @@ const CreateEvent = ({ visible, onDismiss, reFetch, mode, eventId }: CreateEvent
 
             {mode === 'create' ? (
               <View style={styles.buttonContainer}>
-                <Button style={{ flex: 1 }} onPress={onDismiss} mode='contained'>Cancel</Button>
-                <Button style={{ flex: 1 }} onPress={() => createEvent(eventName, allUserIds)} mode='contained'>Create</Button>
+                <Button style={styles.cancelButton} textColor='#F22233' onPress={onDismiss} mode='outlined'>Cancel</Button>
+                <Button style={{ flex: 1, borderRadius: 10, }} buttonColor='#03A688' textColor='#F2E3D5' onPress={() => createEvent(eventName, allUserIds)} mode='contained'>Create</Button>
               </View>              
             ) : (
               <View style={styles.buttonContainer}>
-                <Button style={{ flex: 1 }} onPress={onDismiss} mode='contained'>Cancel</Button>
-                <Button style={{ flex: 1 }} mode='contained' onPress={() => newUser(eventId!)} >Add Users</Button>
+                <Button style={styles.cancelButton} textColor='#F22233' onPress={onDismiss} mode='outlined'>Cancel</Button>
+                <Button style={styles.confirmButton} buttonColor='#03A688' textColor='#F2E3D5' mode='contained' onPress={() => newUser(eventId!)} >Add Users</Button>
               </View>
             )}
 
@@ -193,49 +210,73 @@ export default CreateEvent
 
 const styles = StyleSheet.create({
   modalContainer: {
-	backgroundColor: 'white', 
-	padding: 10,
-  margin: 10,
-  borderRadius: 10,
-  marginBottom: 70,
+	  backgroundColor: '#024059', 
+	  padding: 10,
+    margin: 10,
+    borderRadius: 10,
+    marginBottom: 70,
+    borderColor: '#03A688',
+    borderWidth: 2,
   },
   modalView: {
-	flexDirection: 'column',
+	  flexDirection: 'column',
+  },
+  cancelButton: {
+    flex: 1, 
+    borderColor: '#A61723', 
+    borderWidth: 1.5, 
+    borderRadius: 10,
+  },
+  confirmButton: {
+    flex: 1, 
+    borderRadius: 10,
+  },
+  title: {
+    color: '#03A688',
+  },
+  subHead: {
+    color: '#03A688',
+    marginBottom: 10,
+  },
+  textInput: {
+    marginBottom: 10,
+    height: 45,
+    fontSize: 20,
   },
   chipScrollContainer: {
-	maxHeight: 120,
-	marginTop: 5,
+	  maxHeight: 120,
+	  marginTop: 5,
   },
   chipsWrapper: {
-	flexDirection: 'row',
-	flexWrap: 'wrap',
-	gap: 8,
+	  flexDirection: 'row',
+	  flexWrap: 'wrap',
+	  gap: 8,
   },
   searchBar: {
-	height: 45,
+	  height: 45,
   },
   searchInput: {
-	minHeight: 0,
+	  minHeight: 0,
   },
   searchOverlay: {
-	position: 'absolute',
-	top: '100%',
-	left: 0,
-	right: 0,
-	backgroundColor: 'white',
-	maxHeight: 120,
-	borderRadius: 8,
-	elevation: 4,
-	shadowColor: '#000',
-	shadowOffset: { width: 0, height: 2 },
-	shadowOpacity: 0.25,
-	shadowRadius: 3.84,
-	marginTop: 4,
+	  position: 'absolute',
+	  top: '100%',
+	  left: 0,
+	  right: 0,
+	  backgroundColor: 'white',
+	  maxHeight: 120,
+	  borderRadius: 8,
+	  elevation: 4,
+	  shadowColor: '#000',
+	  shadowOffset: { width: 0, height: 2 },
+	  shadowOpacity: 0.25,
+	  shadowRadius: 3.84,
+	  marginTop: 4,
   },
   searchContainer: {
-	position: 'relative',
-	zIndex: 10,
-	marginBottom: 10,
+	  position: 'relative',
+	  zIndex: 10,
+	  marginBottom: 10,
   },
   buttonContainer: {
     flexDirection: 'row', 

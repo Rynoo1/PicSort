@@ -8,11 +8,12 @@ interface RenameProps {
     personName: string;
     personId: number;
     visible: boolean;
-    refreshEvent: () => void;
+    refreshEvent?: () => void;
     onDismiss: () => void;
+    mode: 'person' | 'event';
 }
 
-const RenamePerson = ({ personName, visible, onDismiss, personId, refreshEvent }: RenameProps) => {
+const RenamePerson = ({ personName, visible, onDismiss, personId, refreshEvent, mode }: RenameProps) => {
 
     const [newName, setNewName] = useState(personName);
 
@@ -25,7 +26,7 @@ const RenamePerson = ({ personName, visible, onDismiss, personId, refreshEvent }
             await EventAPI.updatePersonName(personId, newName);
             alert('Name successfully changed');
 
-            await refreshEvent();
+            await refreshEvent?.();
 
             onDismiss();
         } catch (error) {
@@ -34,18 +35,30 @@ const RenamePerson = ({ personName, visible, onDismiss, personId, refreshEvent }
         }
     }
 
+    // const updateEvent = async () => {
+    //     try {
+    //         await 
+    //     } catch (error) {
+            
+    //     }
+    // }
+
   return (
     <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={styles.modalContainer}>
         <View>
-            <Text variant='headlineLarge'>Rename Person</Text>
+            <Text style={{ color: '#F2E3D5', marginBottom: 10, }} variant='displaySmall'>Rename Person</Text>
             <TextInput 
                 mode='outlined'
+                style={styles.textInput}
                 value={newName}
-                onChangeText={newName => setNewName(newName)} 
+                onChangeText={newName => setNewName(newName)}
+                outlineColor='#03A688'
+                activeOutlineColor='#03A688'
             />
             <View style={{ flexDirection: 'row', gap: 15 }}>
-                <Button  mode='contained' style={styles.button} onPress={onDismiss}>Cancel</Button>
-                <Button mode='contained' style={styles.button} onPress={updateName}>Change Name</Button>
+                <Button  mode='outlined' style={[styles.button, { borderColor: '#A61723', borderWidth: 1.5, }]} textColor='#F22233' onPress={onDismiss}>Cancel</Button>
+                <Button mode='contained' style={styles.button} buttonColor='#03A688' textColor='#F2E3D5' onPress={updateName}>Change Name</Button>
+                {/* <Button mode='contained' style={styles.button} buttonColor='#03A688' textColor='#F2E3D5' onPress={mode == 'person' ? updateName : updateEvent}>Change Name</Button> */}
             </View>
         </View>
     </Modal>
@@ -56,11 +69,22 @@ export default RenamePerson
 
 const styles = StyleSheet.create({
     modalContainer: {
-        backgroundColor: 'white',
-        padding: 20,
+        backgroundColor: '#024059',
+        padding: 10,
+        margin: 10,
+        borderRadius: 10,
+        paddingBottom: 15,
+        borderColor: '#03A688',
+        borderWidth: 2,
     },
     button: {
         marginTop: 10,
         flex: 1,
+        borderRadius: 10,
     },
+    textInput: {
+        marginBottom: 10,
+        height: 45,
+        fontSize: 20,
+    }
 })

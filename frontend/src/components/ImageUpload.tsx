@@ -182,13 +182,13 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPer
             <View>
                 {mode === 'upload' ? (
                     <>
-                        <Text variant='headlineSmall'>Upload New Photos</Text>
-                        <Button mode='contained' onPress={pickImages} disabled={uploading} icon="image-multiple">Select Images</Button>
+                        <Text variant='headlineSmall' style={styles.title}>Upload New Photos</Text>
+                        <Button mode='outlined' textColor='#F2E3D5' onPress={pickImages} disabled={uploading} icon="image-multiple" style={{ marginTop: 10, borderColor: '#F2E3D5' }}>Select Images</Button>
                     </>
                 ) : (
                     <>
-                        <Text variant='headlineSmall'>Search for a Face</Text>
-                        <Button mode='contained' onPress={pickSearch} disabled={uploading} icon="image">Take a Picture</Button>
+                        <Text variant='headlineSmall' style={styles.title}>Search for a Face</Text>
+                        <Button mode='outlined' textColor='#F2E3D5' style={{ marginTop: 10, borderColor: '#03A688' }} onPress={pickSearch} disabled={uploading} icon="image">Take a Picture</Button>
                     </>
                 )}
                 
@@ -196,6 +196,7 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPer
                     <>
                         <FlatList
                             data={selectedImages}
+                            style={{ marginTop: 7 }}
                             numColumns={3}
                             inverted={true}
                             keyExtractor={(item, index) => item.fileName ?? item.uri ?? index.toString()}
@@ -206,11 +207,11 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPer
                                 />
                             )}
                         />
-                        <Text> Selected: {selectedImages.length} image{selectedImages.length !== 1 ? 's' : ''}</Text>
-                        <Button mode='contained' onPress={uploadImagesToS3} disabled={uploading} icon='upload'>{uploading ? 'Uploading...' : 'Upload Images'}</Button>
+                        <Text variant='titleSmall' style={{ color: '#F2E3D5', marginVertical: 3 }}> Selected: {selectedImages.length} image{selectedImages.length !== 1 ? 's' : ''}</Text>
+                        <Button mode='contained' style={{ marginTop: 3 }} buttonColor='#03A688' textColor='#024059' onPress={uploadImagesToS3} disabled={uploading} icon='upload'>{uploading ? 'Uploading...' : 'Upload Images'}</Button>
                     </>
                 )}
-                <Button mode='contained' onPress={handleCancel} disabled={uploading} style={{ marginTop: 10 }}>Cancel</Button>
+                <Button mode='outlined' onPress={handleCancel} disabled={uploading} style={{ marginTop: 15, borderColor: '#A61723' }} textColor='#F22233'>Cancel</Button>
             </View>
         </Modal>
     )
@@ -220,8 +221,16 @@ export default ImageUploadComponent
 
 const styles = StyleSheet.create({
     modalContainer: {
-        backgroundColor: 'white',
-        padding: 20,
+	    backgroundColor: '#024059', 
+	    padding: 10,
+        margin: 10,
+        borderRadius: 10,
+        marginBottom: 70,
+        borderColor: '#03A688',
+        borderWidth: 2,
+    },
+    title: {
+        color: '#03A688',
     },
     thumbnail: {
         height: 100,

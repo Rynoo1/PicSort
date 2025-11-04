@@ -23,8 +23,8 @@ const GalleryDisplay: React.FC<GalleryDisplayProps> = ({ item, showModal, showUp
             </TouchableOpacity>
     ) : (
             <TouchableOpacity style={{ flex: 1 }} onPress={() => showModal(item.url, Number(item.id))}>
-                <Image style={styles.galleryImage} source={{ uri: item.url }} />
-            </TouchableOpacity>        
+                <Image style={styles.galleryImage} source={{ uri: item.url }} placeholder={{ blurhash: 'L5H2EC=PM+yV0g-mq.wG9c010J}I' }} />
+            </TouchableOpacity>
         )
     )
 )}
@@ -33,21 +33,21 @@ export default GalleryDisplay
 
 const styles = StyleSheet.create({
     galleryImage: {
-        height: 125,
-        width: 125,
+        height: 122,
+        width: 122,
         marginBottom: 5,
         borderRadius: 10,
     },
     footer: {
-        width: 125,
-        height: 125,
+        width: 122,
+        height: 122,
         marginBottom: 5,
         borderRadius: 10,
         overflow: 'hidden',
         marginRight: 3,
     },
     footerText: {
-        color: 'white',
+        color: '#F2E3D5',
         textAlign: 'center',
     },
     overlay: {
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.64)',
         justifyContent: 'center',
         alignItems: 'center',
     },
