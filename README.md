@@ -164,3 +164,5 @@ To optimise performance, the presigned URLs are cached on the front end for fast
 ![ERD](./Assets/ERD.png)
 
 ## 🏁 Final Outcome
+
+### [Demo Video](https://drive.google.com/file/d/1p0i5AE8h_-4gTVei5OS4qOBUYTy8TQWY/view?usp=sharing)
