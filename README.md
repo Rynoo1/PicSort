@@ -63,42 +63,53 @@ Make sure the following are installed and configured:
 ### Installation
 
 #### 1. **Clone the Repository**
-`git clone https://github.com/Rynoo1/PicSort.git
-cd PicSort`
+
+	`git clone https://github.com/Rynoo1/PicSort.git
+	cd PicSort`
 
 #### 2. **Backend Setup (Go + Fiber)**
 
 1.  Navigate to the backend folder:
-`cd backend`
+
+	`cd backend`
 
 2. Install Go dependencies:
-`go mod tidy`
+
+	`go mod tidy`
 
 3. Create a `.env` file in the backend directory (if not already present):
-`touch .env`
+
+	`touch .env`
 
 4. Run the development server:
-`go run main.go`
+
+	`go run main.go`
 
 The backend API will now be available at:
-`http://localhost:8080`
+
+	`http://localhost:8080`
 
 #### 3. **Frontend Setup (React Native + Expo)**
 
 1.  Open a new terminal window (keep the backend running), then navigate to the frontend directory:
-`cd ../frontend`
+
+	`cd ../frontend`
 
 2. Install dependencies:
-`npm install`
-or
-`yarn install`
+
+	`npm install`
+	or
+	`yarn install`
 
 3. Configure your backend API URL:  
 Inside your React Native frontend, create a file called `.env` or use a configuration constant:
-`API_URL=http://localhost:8080`
+
+	`API_URL=http://localhost:8080`
 
 4. Start the Expo development server:
-`npx expo start`
+
+	`npx expo start`
+
 This will open a local server dashboard in your browser.
     
 5. Run the app:
