@@ -14,6 +14,9 @@ PicSort looks to address the messy way in which photos get shared after an event
 
 This project provides one location where all images can get uploaded to, stored in cloud bucket storage and sorted into specific collections based on the faces in the photos.
 
+![ERD](./Assets/Mockup02.png)
+![ERD](./Assets/Mockup09.png)
+
 ----------
 
 ## 🛠️ Built With
@@ -147,6 +150,6 @@ Since Rekognition does not support formats such as HEIC (used by Apple), the ima
 To optimise performance, the presigned URLs are cached on the front end for faster loading, after the initial load. For this to work correctly, I needed to make changes to the backend and database, so that an updated at timestamp would also be stored in the Events table - so that this can be used to determine when to refresh the cached event data, if changes, such as uploads or deletes, have been made to the event DB record.
 
 ### ERD:
-
+![ERD](./Assets/ERD.png)
 
 ## 🏁 Final Outcome
