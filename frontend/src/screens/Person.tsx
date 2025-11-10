@@ -62,14 +62,14 @@ const Person = ({ personId, personName, personImages }: PersonProps) => {
                 <Appbar.Action color='#f2668bff' icon='pencil' onPress={() => showRename(personId, personName)} />
             </Appbar.Header>
             <FlatList
-                style={{ padding: 5, marginBottom: '70%', }}
+                style={{ padding: 5, marginBottom: '20%', }}
                 data={personImages}
-                numColumns={3}
-                inverted={true}
+                numColumns={2}
+                inverted={false}
                 horizontal={false}
                 keyExtractor={(item, index) => item.type === 'image' ? item.id : `header-${index}`}
                 renderItem={({ item }) => (
-                    <GalleryDisplay item={item} showModal={showModal} view='gallery' />
+                    <GalleryDisplay item={item} showModal={showModal} view='people' />
                 )}
             />
 

@@ -23,7 +23,7 @@ const GalleryDisplay: React.FC<GalleryDisplayProps> = ({ item, showModal, showUp
             </TouchableOpacity>
     ) : (
             <TouchableOpacity style={{ flex: 1 }} onPress={() => showModal(item.url, Number(item.id))}>
-                <Image style={styles.galleryImage} source={{ uri: item.url }} placeholder={{ blurhash: 'L5H2EC=PM+yV0g-mq.wG9c010J}I' }} />
+                <Image style={view == 'gallery' ? styles.galleryImage : styles.personImage} source={{ uri: item.url }} placeholder={{ blurhash: 'L5H2EC=PM+yV0g-mq.wG9c010J}I' }} />
             </TouchableOpacity>
         )
     )
@@ -36,6 +36,12 @@ const styles = StyleSheet.create({
         height: 122,
         width: 122,
         marginBottom: 5,
+        borderRadius: 10,
+    },
+    personImage: {
+        height: 180,
+        width: 180,
+        marginBottom: 10,
         borderRadius: 10,
     },
     footer: {

@@ -196,7 +196,7 @@ const ImageUploadComponent = ({ eventId, userId, visible, onDismiss, mode, onPer
                     <>
                         <FlatList
                             data={selectedImages}
-                            style={{ marginTop: 7 }}
+                            style={{ marginTop: 7, maxHeight: '65%' }}
                             numColumns={3}
                             inverted={true}
                             keyExtractor={(item, index) => item.fileName ?? item.uri ?? index.toString()}

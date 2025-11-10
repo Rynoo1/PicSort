@@ -49,7 +49,7 @@ const Main = () => {
 			setError(null);
 
 			const response = await EventAPI.returnAllEvents();
-			console.log(response.data[1].user_count);
+			// console.log(response.data[1].user_count);
 			
 			if (response.data.length < 1 ) {
 				setEvents([]);
@@ -99,7 +99,7 @@ const Main = () => {
 	if (loading) {
 		return (
 			<SafeAreaView style={[styles.container, { paddingTop: 70 }]}>
-				<ActivityIndicator size='large' color='#D94E5A' />
+				<ActivityIndicator size='large' color='#f2668bff' />
 			</SafeAreaView>
 		)
 	}
@@ -128,10 +128,6 @@ const Main = () => {
 						</Dialog.Content>
 					</Dialog>
 				</Portal>
-				{/* <Appbar.Header style={{ backgroundColor: '#024059', }}>
-                    <Appbar.Content color='#03A688' title='All Events' />
-                    <Appbar.Action icon="account-arrow-right" color='#f2668bff' onPress={() => console.log('logout')} />
-                </Appbar.Header> */}
 				<View style={{ flexDirection: 'row' }}>
 					<Text variant='displaySmall' style={styles.heading}>All Events</Text>
 					<IconButton size={30} iconColor='#f2668bff' icon='account-arrow-right' style={{ flex: 1, alignItems: 'flex-end', marginEnd: 20 }} onPress={logout} />
@@ -144,7 +140,7 @@ const Main = () => {
 					refreshing={loading}
 					onRefresh={fetchAllEvents}
 					ListEmptyComponent={(
-						<Text variant='headlineLarge' style={{ color: "#D94E5A", marginLeft: 20 }}>No Events Yet</Text>
+						<Text variant='headlineLarge' style={{ color: "#f2668bff", marginLeft: 20 }}>No Events Yet</Text>
 					)}
 				/>
 				<FAB 

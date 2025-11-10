@@ -224,7 +224,7 @@ const Event = () => {
     if (loading) {
         return (
             <SafeAreaView style={[styles.container, { paddingTop: 70 }]}>
-                <ActivityIndicator color='#D94E5A' size='large' />
+                <ActivityIndicator color='#f2668bff' size='large' />
             </SafeAreaView>
         );
     }
