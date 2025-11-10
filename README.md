@@ -1,3 +1,4 @@
+![Banner](./Assets/Poster.png)
 # 📸 PicSort
 
 **Smart Image Sorting and Management Tool**
@@ -14,8 +15,8 @@ PicSort looks to address the messy way in which photos get shared after an event
 
 This project provides one location where all images can get uploaded to, stored in cloud bucket storage and sorted into specific collections based on the faces in the photos.
 
-![ERD](./Assets/Mockup02.png)
-![ERD](./Assets/Mockup09.png)
+![MockupCollage](./Assets/12(1).png)
+![MockupUpload](./Assets/UploadWide.png)
 
 ----------
 
@@ -139,11 +140,11 @@ You should be able to perform actions such as:
 ## ✨ Project Features
 
 ### **Automatic Sorting**
-
+![MockupPerson](./Assets/Person.png)
 Organises images into collections based on facial recognition data
 
 ### **Batch Processing**
-
+![MockupUpload](./Assets/UploadPhotos.png)
 Handles multiple image uploads at once
 
 
