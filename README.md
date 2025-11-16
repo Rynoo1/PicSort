@@ -15,8 +15,8 @@ PicSort looks to address the messy way in which photos get shared after an event
 
 This project provides one location where all images can get uploaded to, stored in cloud bucket storage and sorted into specific collections based on the faces in the photos.
 
+![MockupUserFlow](./Assets/userFlow.png)
 ![MockupCollage](./Assets/Collage.png)
-![MockupUpload](./Assets/UploadWide.png)
 
 ----------
 
