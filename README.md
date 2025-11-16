@@ -22,7 +22,7 @@ This project provides one location where all images can get uploaded to, stored 
 
 ## 🛠️ Built With
 
-- **Backend: ** Go, GORM, Fiber 
+- **Backend:** Go, GORM, Fiber 
 - **Database:** PostgreSQL
 - **Containerization:** Docker
 - **Hosting:** AWS
